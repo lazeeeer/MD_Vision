@@ -1,0 +1,12 @@
+# Ignore build outputs
+/build/
+
+# Ignore ESP-IDF specific environment files
+.espressif/
+.vscode/
+*.log
+
+# Ignore auto-generated SDK config files
+sdkconfig.old
+sdkconfig.*
+
