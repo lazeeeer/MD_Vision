@@ -1,6 +1,9 @@
 #include <stdio.h>
+#include "test.h"   // adding in my custom component
 
 void app_main(void)
 {
-    printf("THIS IS A TESt");
+    //calling my custom fucntion
+    sayHi();
+
 }

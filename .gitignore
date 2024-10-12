@@ -6,6 +6,8 @@
 .vscode/
 *.log
 
+.DS_Store
+
 # Ignore auto-generated SDK config files
 sdkconfig.old
 sdkconfig.*
