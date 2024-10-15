@@ -1,5 +1,6 @@
 ## IDF Component Manager Manifest File
 dependencies:
+  espressif/esp32-camera: "^2.0.13"
   lvgl/lvgl: "^9.2.0"
   ## Required IDF version
   idf:

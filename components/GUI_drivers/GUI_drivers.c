@@ -34,7 +34,6 @@ void init_display()
     //initializin the HAL
     u8g2_esp32_hal_init(u8g2_esp32_hal);
 
-
     // init'ing HAL to use our display driver board
     u8g2_Setup_ssd1309_128x64_noname0_2(&mainDisp, U8G2_R0, u8g2_esp32_spi_byte_cb, u8g2_esp32_gpio_and_delay_cb);
     u8g2_InitDisplay(&mainDisp);
