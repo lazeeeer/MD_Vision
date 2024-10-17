@@ -97,6 +97,13 @@ esp_err_t init_camera()
     else {
         return ESP_OK;
     }
+
+    // changing some of the sensor settings for better quality
+    sensor_t *s = esp_camera_sensor_get();
+    s->set_gain_ctrl(s, 0); // auto gain off (1 or 0)
+    s->set_exposure_ctrl(s, 0); // auto exposure off (1 or 0)
+    s->set_agc_gain(s, 0); // set gain manually (0 - 30)
+    s->set_aec_value(s, 600); // set exposure manually (0-1200)
 }
 
 

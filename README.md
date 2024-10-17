@@ -19,7 +19,13 @@ files that provide set of directives and instructions describing the project's s
 (executable, library, or both). 
 
 ## Required Libraries and IDF-Components
-**TODO**
+- u8g2 monochrome graphics library - https://github.com/olikraus/u8g2
+- esp32-camera - https://github.com/espressif/esp32-camera
+
+Please clone the following libraries into the components folder using the commands:
+git clone https://github.com/espressif/esp32-camera ./components/esp32-camera
+git clone https://github.com/olikraus/u8g2 ./components/u8g2
+
 
 ## Project Structure / Organization
 ```
