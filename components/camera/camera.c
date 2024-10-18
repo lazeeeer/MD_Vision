@@ -86,6 +86,13 @@ static camera_config_t camera_config = {
 // init the camera with our pre-defined settings above
 esp_err_t init_camera()
 {   
+    // changing some of the sensor settings for better quality
+    sensor_t *s = esp_camera_sensor_get();
+    s->set_gain_ctrl(s, 0); // auto gain off (1 or 0)
+    s->set_exposure_ctrl(s, 0); // auto exposure off (1 or 0)
+    s->set_agc_gain(s, 0); // set gain manually (0 - 30)
+    s->set_aec_value(s, 600); // set exposure manually (0-1200)
+
     // initing camera hardware with our config
     esp_err_t err = esp_camera_init(&camera_config);
 
@@ -98,12 +105,6 @@ esp_err_t init_camera()
         return ESP_OK;
     }
 
-    // changing some of the sensor settings for better quality
-    sensor_t *s = esp_camera_sensor_get();
-    s->set_gain_ctrl(s, 0); // auto gain off (1 or 0)
-    s->set_exposure_ctrl(s, 0); // auto exposure off (1 or 0)
-    s->set_agc_gain(s, 0); // set gain manually (0 - 30)
-    s->set_aec_value(s, 600); // set exposure manually (0-1200)
 }
 
 
