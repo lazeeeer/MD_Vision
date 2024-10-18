@@ -45,40 +45,44 @@ void UART_input(void *param)
     char stringBuffer[MSG_CHAR_LEN];     //buffer to take in data from UART and pass it on 
     int position = 0;
 
-    // loop that constantly runs and checks for shit
-    for (;;)
-    {
-        
-        // reading 1 single byte of data
-        len = uart_read_bytes(UART_PORT_NUM, &data, 1, 0);
+    for (;;)    // task loop...
+    {   
+        // entering loop to continuously read bytes if available
+        while(1)
+        {   
+            //grabbing one byte of data
+            len = uart_read_bytes(UART_PORT_NUM, &data, 1, portMAX_DELAY);
 
-        // checking to see if there is data on the buffer
-        if (len > 0)
-        {
-            if (data == '\n' || data == '\r')
-            {
-                // adding a null temrinator
-                stringBuffer[position] = '\0';
-
-                if(xQueueSend(q, stringBuffer, portMAX_DELAY) != pdPASS)
+            // if there was a byte read, process it into the msg buffer
+            if (len > 0)
+            {   
+                // if the byte was a termination char, process the msg and send it
+                if (data == '\n' || data == '\r')
                 {
-                    printf("could not put msg in queue :(\n)");
+                    // adding a null temrinator
+                    stringBuffer[position] = '\0';
+
+                    if(xQueueSend(q, stringBuffer, portMAX_DELAY) != pdPASS)
+                    {
+                        printf("could not put msg in queue :(\n)");
+                    }
+
+                    // clearing msg buffer and processing vars
+                    memset(stringBuffer, 0, strlen(stringBuffer));
+                    uart_flush(UART_PORT_NUM);
+                    position = 0;
+
                 }
-
-                memset(stringBuffer, 0, strlen(stringBuffer));
-                uart_flush(UART_PORT_NUM);
-                position = 0;
-
+                else    // regular processing, append last read byte to msg buffer
+                {
+                    stringBuffer[position++] = data;
+                }
             }
-            else {
-                stringBuffer[position++] = data;
-            }
-
-            uart_flush(UART_PORT_NUM);
+            else { break; }     // if no bytes were read, break out of byte read loop
         }
 
         //adding to control can go back to scheduler...
-        vTaskDelay(500/portTICK_PERIOD_MS);
+        vTaskDelay(100/portTICK_PERIOD_MS);
     }
 }
 
@@ -90,16 +94,20 @@ void queue_to_disp(void *param)
     char msg[MSG_CHAR_LEN];
 
     for (;;)
-    {
-       if (xQueueReceive(q, msg, portMAX_DELAY) == pdPASS)
-       {
+    {   
+        // task yields until it gets a message on the queue
+        if (xQueueReceive(q, msg, portMAX_DELAY) == pdPASS)
+        {
+            // debug printing...
             printf("queue has message\n");
             printf("received: %s\n", msg);
+
+            //clear and write to disp
+            clear_disp();
+            write_to_disp(1, 10, msg);
+
             memset(msg, 0, MSG_CHAR_LEN);
         }
-
-        // giving control back to scheduler
-        vTaskDelay(10/portTICK_PERIOD_MS);
     }
     // end of task...
 }

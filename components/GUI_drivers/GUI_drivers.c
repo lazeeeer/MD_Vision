@@ -47,6 +47,7 @@ void clear_disp()
     u8g2_ClearDisplay(&mainDisp);
 }
 
+// TODO : HANDLING MULTI LINE MESSAGES
 void write_to_disp(int x, int y, const char* str)
 {
     // THIS IS TEMP - TODO
