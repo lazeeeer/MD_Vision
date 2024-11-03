@@ -24,6 +24,9 @@
 #include "driver/uart.h"
 
 
+// including wifi comms code
+#include "wifi_comms.h"
+
 
 // ==== testing ======================
 
@@ -104,7 +107,7 @@ void queue_to_disp(void *param)
 
             //clear and write to disp
             clear_disp();
-            write_to_disp(1, 10, msg);
+            write_to_disp(1, 20, msg);
 
             memset(msg, 0, MSG_CHAR_LEN);
         }
@@ -128,6 +131,10 @@ void app_main(void)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
 
+
+    init_wifi_comms();
+
+
     // Install UART driver using an event queue here
     uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
     uart_param_config(UART_PORT_NUM, &uart_config);
@@ -141,6 +148,7 @@ void app_main(void)
     // initing the display and making sure its clear
     init_display();
     clear_disp();
+    test_pixels();
 
 
     // CREATING TASKS
