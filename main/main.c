@@ -118,7 +118,11 @@ void queue_to_disp(void *param)
 
 
 
-
+/*
+    ***NOTE
+    THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
+    ADD / TEST ANYTHING YOU WANT IN HEAR AS A 'WRAPPER FUNCTION' CALLED FROM OTHER .C FILES
+*/
 void app_main(void)
 {
 
@@ -131,10 +135,6 @@ void app_main(void)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
 
-
-    init_wifi_comms();
-
-
     // Install UART driver using an event queue here
     uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
     uart_param_config(UART_PORT_NUM, &uart_config);
@@ -143,7 +143,6 @@ void app_main(void)
     //creating a queue to pass information around
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
-    //msg = (char*)malloc(sizeof(char) * MSG_CHAR_LEN);
 
     // initing the display and making sure its clear
     init_display();
@@ -151,11 +150,14 @@ void app_main(void)
     test_pixels();
 
 
-    // CREATING TASKS
+    // testing wifi comms shid
+    init_wifi_comms();
+    test_http_request();
 
+
+    // CREATING TASKS
     xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
     xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
-
 
 
     // end of main...

@@ -18,8 +18,8 @@
 #include "wifi_comms.h"
 
 // Defines for WiFi connection and server parameters
-#define WIFI_SSID       "INSERT"
-#define WIFI_PASSWORD   "INSERT"
+#define WIFI_SSID       "Lazar"
+#define WIFI_PASSWORD   "Gumdrop1"
 #define SERVER_IP       "INSERT"
 #define SERVER_SOCKET   "INSERT"
 
@@ -32,7 +32,7 @@
 
 
 // Global Variables //
-static const char *TAG = "WIFI";
+static const char *TAG = "WIFI_COMMS";
 static EventGroupHandle_t wifi_event_group;     // group bits to contain status bits for wifi connection
 static int s_retry_num = 0;                     //retry tracker
 
@@ -130,8 +130,8 @@ esp_err_t connect_wifi()
         
         // insert all paramets for wifi connection here
         .sta = {
-            .ssid = "MY SSID",
-            .password = "MY PASSWORD",
+            .ssid = "Lazar",
+            .password = "Gumdrop1",
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .pmf_cfg = {
                 .capable = true,
@@ -182,6 +182,29 @@ esp_err_t connect_wifi()
     return status;
 
 }
+
+
+void test_http_request() {
+    esp_http_client_config_t config = {
+        .url = "http://httpbin.org/get",
+        .auth_type = HTTP_AUTH_TYPE_BASIC,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    // Send the request
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        printf("HTTP GET Status = %d, content_length = %lld\n",
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    } else {
+        printf("HTTP GET request failed: %s\n", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(client);
+}
+
+
 
 
 // TODO: STEVEN MAKE THIS 
