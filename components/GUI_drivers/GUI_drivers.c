@@ -18,6 +18,9 @@
 // making a u8g2 object for our main display
 static u8g2_t mainDisp;
 
+// define the queue from GUI_drivers.h
+QueueHandle_t displayQueue;
+
 // ==== List of main wrapper functions editing display ========== //
 
 void init_display()
@@ -38,11 +41,15 @@ void init_display()
     // using noname0_f -> gives a full frame buffer with 10124 bytes
     u8g2_Setup_ssd1309_128x64_noname0_f(&mainDisp, U8G2_R0, u8g2_esp32_spi_byte_cb, u8g2_esp32_gpio_and_delay_cb);
 
+    // initing the queue and giving it a size of 10
+    displayQueue = xQueueCreate(10, sizeof(display_msg_package_t));
+
     // calling init commands to turn on and clear display
     u8g2_InitDisplay(&mainDisp);
     u8g2_SetPowerSave(&mainDisp, 0);    // turning the display on
     u8g2_ClearDisplay(&mainDisp);
     
+
 }
 
 void clear_disp()
@@ -51,41 +58,8 @@ void clear_disp()
 }
 
 
-// display a string on multiple lines, keeping words intact where possible
-void printwords(const char *msg, int xloc, int yloc) {
 
-   int dspwidth = u8g2_GetDisplayWidth(&mainDisp);                        // display width in pixels
-   int strwidth = 0;                         // string width in pixels
-   char glyph[2]; glyph[1] = 0;
-
-   for (const char *ptr = msg, *lastblank = NULL; *ptr; ++ptr) {
-      while (xloc == 0 && *msg == ' ')
-         if (ptr == msg++) ++ptr;                        // skip blanks at the left edge
-
-      glyph[0] = *ptr;
-      strwidth += u8g2_GetStrWidth(&mainDisp, glyph);                        // accumulate the pixel width
-      if (*ptr == ' ')  lastblank = ptr;                        // remember where the last blank was
-      else ++strwidth;                        // non-blanks will be separated by one additional pixel
-
-      if (xloc + strwidth > dspwidth) {                        // if we ran past the right edge of the display
-         int starting_xloc = xloc;
-         while (msg < (lastblank ? lastblank : ptr)) {                        // print to the last blank, or a full line
-            glyph[0] = *msg++;
-            xloc += u8g2_DrawStr(&mainDisp, xloc, yloc, glyph); 
-         }
-
-         strwidth -= xloc - starting_xloc;                        // account for what we printed
-         yloc += u8g2_GetMaxCharHeight(&mainDisp);                        // advance to the next line
-         xloc = 0; lastblank = NULL;
-      }
-   }
-   while (*msg) {                        // print any characters left over
-      glyph[0] = *msg++;
-      xloc += u8g2_DrawStr(&mainDisp, xloc, yloc, glyph);
-   }
-}
-
-
+// write a simple verticle line to make sure display buffer has enough allocated memory
 void test_pixels()
 {
     u8g2_ClearBuffer(&mainDisp);  // Clear the buffer
@@ -145,6 +119,23 @@ void write_to_disp(int x, int y, const char* str)
 }
 
 // more to come...
+
+
+
+// Main display control loop
+
+void displayLoop(void *params)
+{
+
+
+    printf("hello");
+
+
+}
+
+
+
+
 
 
 

@@ -23,7 +23,6 @@
 // including UART libraries
 #include "driver/uart.h"
 
-
 // including wifi comms code
 #include "wifi_comms.h"
 
@@ -134,6 +133,10 @@ void app_main(void)
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
+
+
+    init_wifi();
+
 
     // Install UART driver using an event queue here
     uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
