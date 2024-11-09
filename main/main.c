@@ -105,8 +105,10 @@ void queue_to_disp(void *param)
             printf("received: %s\n", msg);
 
             //clear and write to disp
-            clear_disp();
-            write_to_disp(1, 20, msg);
+            //clear_disp();
+            write_to_disp(msg);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            display_clear_msg_text();
 
             memset(msg, 0, MSG_CHAR_LEN);
         }
@@ -135,7 +137,10 @@ void app_main(void)
     };
 
 
-    init_wifi_comms();
+    // testing wifi comms shid
+    //init_wifi_comms();
+    //init_wifi_comms();
+    //test_http_request();
 
 
     // Install UART driver using an event queue here
@@ -146,16 +151,11 @@ void app_main(void)
     //creating a queue to pass information around
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
-
     // initing the display and making sure its clear
     init_display();
     clear_disp();
-    test_pixels();
+    display_main_hud();
 
-
-    // testing wifi comms shid
-    init_wifi_comms();
-    test_http_request();
 
 
     // CREATING TASKS

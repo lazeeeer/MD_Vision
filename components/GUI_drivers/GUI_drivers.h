@@ -40,6 +40,9 @@ typedef struct
 
 void init_display();
 void clear_disp();
-void write_to_disp(int x, int y, const char* str);
+void write_to_disp(const char* str);
 void test_pixels();
+void display_clear_msg_text();
+
+void display_main_hud(void);
 

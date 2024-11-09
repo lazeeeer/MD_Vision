@@ -56,30 +56,57 @@ void init_display()
 
 }
 
-// function to clear the display
+// function to clear the ENTIRE display
 void clear_disp()
 {
-    u8g2_ClearDisplay(&mainDisp);
+    u8g2_ClearBuffer(&mainDisp);
+    u8g2_SendBuffer(&mainDisp);
 }
 
 
 // function to write the main HUD of the display onto the frame buffer
+// series of commands to make the main display HUD and write the buffer ...
 void display_main_hud(void)
 {
-    // series of commands to make the main display HUD and write the buffer ...
+    // clear curr buffer and set font
+    //u8g2_ClearBuffer(&mainDisp);
+    u8g2_SetFont(&mainDisp, u8g2_font_5x8_tr);
+    
+    // write logged-in user on left side of display
+    u8g2_DrawStr(&mainDisp, 0, 10, "Main HUD text");
+
+    // draw small notification dot
+    u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
+
+    u8g2_SendBuffer(&mainDisp);
 }
+
+
+// function to clear JUST the middle text 'area'
+void display_clear_msg_text()
+{
+    // draw a 'clear colour' box on top of the text area
+    u8g2_SetDrawColor(&mainDisp, 0);
+    u8g2_DrawBox(&mainDisp, 14, 10, 100, 80);
+    // send editted buffer to display
+    u8g2_SendBuffer(&mainDisp);
+}
+
 
 
 // simple function to update message notification on display
 void display_update_notif()
 {
-    // messages on queue, add notification
     if ( uxQueueGetQueueNumber(displayQueue) > 0 )
     {
-        // code to write notif symbol on the display
+        // code to add-in notif symbol from display
+        u8g2_SetDrawColor(&mainDisp, 1);
+        u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
     }
     else {
         // code to remove notif symbol from display
+        u8g2_SetDrawColor(&mainDisp, 0);
+        u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
     }
 }
 
@@ -101,22 +128,19 @@ void test_pixels()
 
 
 
-// TODO : HANDLING MULTI LINE MESSAGES
-void write_to_disp(int x, int y, const char* str)
+// TODO: HAVE FUNCTION HANDLE THE MSG_PACKAGE ISNTEAD TO GET THE MSG FLAG AS WELL
+void write_to_disp(const char* str)
 {
-    u8g2_ClearBuffer(&mainDisp);
+    u8g2_SetFont(&mainDisp, u8g2_font_5x8_tr);
+    u8g2_SetDrawColor(&mainDisp, 1);
 
     const int line_char_len = 20;
-    const int num_of_lines = 5;
-    const int line_spacing = 10;
 
     int currMsgLen = strlen(str);
-    printf("msg length: %d\n", currMsgLen);
+    //printf("msg length: %d\n", currMsgLen);   // debug
 
     if (currMsgLen > line_char_len)
     {
-        u8g2_SetFont(&mainDisp, u8g2_font_ncenB08_tr);
-
         // num of lines needed to display msg based on length
         int splitLines = (currMsgLen / line_char_len)+1;
 
@@ -128,8 +152,7 @@ void write_to_disp(int x, int y, const char* str)
 
             printf("%s\n", substring);
 
-
-            u8g2_DrawStr(&mainDisp, 1, (i*10) + 20 , substring);
+            u8g2_DrawStr(&mainDisp, 14, (i*10) + 20 , substring);
 
         }
         // sending buffer after addding al lines to it
@@ -137,59 +160,60 @@ void write_to_disp(int x, int y, const char* str)
 
     }
     else {  //case of only one line needed
-        u8g2_SetFont(&mainDisp, u8g2_font_ncenB08_tr);
-        u8g2_DrawStr(&mainDisp, x, y, str);
+        u8g2_DrawStr(&mainDisp, 14, 20, str);
         u8g2_SendBuffer(&mainDisp);
     }
 
 }
 
-// more to come...
-
-
-
+// TODO : GET BUTTON STATE CHECKING WORKING AND TESTED
 // Main display control loop to run in the task
 void displayLoop(void *params)
 {
-
+   static int state = 0; 
     /* display loop state machine
         0 - idle,       - wait for message on queue     - go to 1
         1 - displaying, - look for button press         - go to 0
     */
-   static int state = 1; 
+
+    // hold the msg struct incoming from the queue
+    display_msg_package_t received_msg;
 
     // main event loop
     while (true)
     {
+        // always check and update msg notification icon
+        void display_update_notif();
 
-        // hold the msg struct incoming from the queue
-        display_msg_package_t received_msg;
-
-
-        // checking current state
-        if()
+        if (state == 0)     // idle and waiting for button input
         {
+            // Check if we have a new message to update display
+            if ( uxQueueGetQueueNumber > 0 && true /* checking button state variable */ ) {
+
+                xQueueReceive(displayQueue, &received_msg, portMAX_DELAY);
+                write_to_disp(received_msg.message);
+
+                // set button state back down to zero
+
+                // change to next state 
+                state = 1;
+            }
+            //one of prev conditions not true... continue
 
         }
-
-
-        // updating notfication symbol on display
-        display_update_notif();
-
-        // Check if we have a new message to update display
-        if ( uxQueueGetQueueNumber > 0 && true /* some code about cehcking button state*/ ) {
-
-            xQueueReceive(displayQueue, &received_msg, portMAX_DELAY);
-            write_to_display(received_msg.message);
-
-        }
-        else { 
-            // yield scheduler for a bit if nothing on msg queue
-            vTaskDelay(250/portTICK_PERIOD_MS);
+        else if (state == 1)    // displaying message, waiting for next button input
+        {
+            // search for button input to indicate done reading
+            if ( true /* code that looks for button input */ )
+            {
+                /* */                       // set button state back down to zero
+                display_clear_msg_text();   // clear msg text area on display
+                state = 0;                  // set state back to idle + wait for input
+            }
         }
 
-
-
+        // yield to scheduler for a bit between checks
+        vTaskDelay(250/portTICK_PERIOD_MS);
     }
 
 }
