@@ -15,11 +15,15 @@
 #define PIN_NUM_RST  18
 #define PIN_NUM_BCKL 5
 
+
+// ==== List of main wrapper functions editing display ========== //
+
 // making a u8g2 object for our main display
 static u8g2_t mainDisp;
 
 // define the queue from GUI_drivers.h
 QueueHandle_t displayQueue;
+
 
 // ==== List of main wrapper functions editing display ========== //
 
@@ -52,9 +56,31 @@ void init_display()
 
 }
 
+// function to clear the display
 void clear_disp()
 {
     u8g2_ClearDisplay(&mainDisp);
+}
+
+
+// function to write the main HUD of the display onto the frame buffer
+void display_main_hud(void)
+{
+    // series of commands to make the main display HUD and write the buffer ...
+}
+
+
+// simple function to update message notification on display
+void display_update_notif()
+{
+    // messages on queue, add notification
+    if ( uxQueueGetQueueNumber(displayQueue) > 0 )
+    {
+        // code to write notif symbol on the display
+    }
+    else {
+        // code to remove notif symbol from display
+    }
 }
 
 
@@ -122,14 +148,49 @@ void write_to_disp(int x, int y, const char* str)
 
 
 
-// Main display control loop
-
+// Main display control loop to run in the task
 void displayLoop(void *params)
 {
 
+    /* display loop state machine
+        0 - idle,       - wait for message on queue     - go to 1
+        1 - displaying, - look for button press         - go to 0
+    */
+   static int state = 1; 
 
-    printf("hello");
+    // main event loop
+    while (true)
+    {
 
+        // hold the msg struct incoming from the queue
+        display_msg_package_t received_msg;
+
+
+        // checking current state
+        if()
+        {
+
+        }
+
+
+        // updating notfication symbol on display
+        display_update_notif();
+
+        // Check if we have a new message to update display
+        if ( uxQueueGetQueueNumber > 0 && true /* some code about cehcking button state*/ ) {
+
+            xQueueReceive(displayQueue, &received_msg, portMAX_DELAY);
+            write_to_display(received_msg.message);
+
+        }
+        else { 
+            // yield scheduler for a bit if nothing on msg queue
+            vTaskDelay(250/portTICK_PERIOD_MS);
+        }
+
+
+
+    }
 
 }
 

@@ -135,7 +135,7 @@ void app_main(void)
     };
 
 
-    init_wifi();
+    init_wifi_comms();
 
 
     // Install UART driver using an event queue here

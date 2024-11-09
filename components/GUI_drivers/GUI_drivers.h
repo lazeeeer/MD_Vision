@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 // Declare the queue handle as extern so other files can access it
 extern QueueHandle_t displayQueue;
