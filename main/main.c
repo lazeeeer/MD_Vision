@@ -27,6 +27,8 @@
 #include "wifi_comms.h"
 
 
+
+
 // ==== testing ======================
 
 
@@ -138,9 +140,8 @@ void app_main(void)
 
 
     // testing wifi comms shid
-    //init_wifi_comms();
-    //init_wifi_comms();
-    //test_http_request();
+    init_wifi_comms();
+    test_http_request();
 
 
     // Install UART driver using an event queue here
@@ -152,9 +153,10 @@ void app_main(void)
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
     // initing the display and making sure its clear
-    init_display();
-    clear_disp();
-    display_main_hud();
+    //init_display();
+    //printf("Diplayed init'd\n");
+    //clear_disp();
+    //display_main_hud();
 
 
 

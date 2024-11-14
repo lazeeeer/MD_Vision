@@ -53,7 +53,6 @@ void init_display()
     u8g2_SetPowerSave(&mainDisp, 0);    // turning the display on
     u8g2_ClearDisplay(&mainDisp);
     
-
 }
 
 // function to clear the ENTIRE display

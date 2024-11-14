@@ -1,25 +1,36 @@
-
+// standard includes
 #include <stdio.h>
 #include <string.h>
+
+// esp system includes
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
 #include "esp_http_client.h"
 #include "esp_netif.h"
 
+// C http libraries
+#include "nvs_flash.h"
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
 #include "lwip/dns.h"
 
+// library for parsing the JSONs from HTTP
+#include "jsmn.h"
+
+// custom header file
 #include "wifi_comms.h"
 
+
+// ==== Defines needed for code =============================
+
 // Defines for WiFi connection and server parameters
-#define WIFI_SSID       "Lazar"
-#define WIFI_PASSWORD   "Gumdrop1"
+#define WIFI_SSID       "SLIM-PC"
+#define WIFI_PASSWORD   "12345678"
+
 #define SERVER_IP       "INSERT"
 #define SERVER_SOCKET   "INSERT"
 
@@ -35,6 +46,8 @@
 static const char *TAG = "WIFI_COMMS";
 static EventGroupHandle_t wifi_event_group;     // group bits to contain status bits for wifi connection
 static int s_retry_num = 0;                     //retry tracker
+#define MAX_HTTP_OUTPUT_BUFFER 128
+static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 
 
@@ -125,13 +138,12 @@ esp_err_t connect_wifi()
 
 
     // Start WiFi Driver shid //
-
     wifi_config_t wifi_config = {
         
         // insert all paramets for wifi connection here
         .sta = {
-            .ssid = "Lazar",
-            .password = "Gumdrop1",
+            .ssid = WIFI_SSID,
+            .password = WIFI_PASSWORD,
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .pmf_cfg = {
                 .capable = true,
@@ -184,37 +196,7 @@ esp_err_t connect_wifi()
 }
 
 
-void test_http_request() {
-    esp_http_client_config_t config = {
-        .url = "http://httpbin.org/get",
-        .auth_type = HTTP_AUTH_TYPE_BASIC,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-
-    // Send the request
-    esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
-        printf("HTTP GET Status = %d, content_length = %lld\n",
-                esp_http_client_get_status_code(client),
-                esp_http_client_get_content_length(client));
-    } else {
-        printf("HTTP GET request failed: %s\n", esp_err_to_name(err));
-    }
-
-    esp_http_client_cleanup(client);
-}
-
-
-
-
-// TODO: STEVEN MAKE THIS 
-// THIS IS THE FUNCTION TO CALL TO REPEATEDLT ON COMMAND I THINK
-esp_err_t connect_tcp_server()
-{
-
-    return ESP_OK;
-}
-
+// ==== Function to call from wrapper to init wifi comms ============================
 
 // functino for calling to and initing wifi connection using functions above
 // this function is to be called from main during the POST tests
@@ -241,3 +223,136 @@ void init_wifi_comms()
     }
 
 }
+
+
+
+// ==== Function calls for data processing and server interaction =======================
+
+
+// event handler for when we make a request to a server as a client
+// esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
+
+//     if (evt->event_id == HTTP_EVENT_ON_DATA) {
+
+//         // making sure out HTTP buffer isnt overflowed
+//         if (evt->data_len < MAX_HTTP_OUTPUT_BUFFER) {
+//             printf("%s\n", (char *)evt->data);
+//             strncpy(response_buffer, (char *)evt->data, evt->data_len);
+//             response_buffer[evt->data_len] = '\0';  // Null-terminate the buffer
+//         }
+//     }
+//     return ESP_OK;
+// }
+
+
+// simple function for parsing over the JSON received from the HTTP client request
+void parse_json(const char *json_str) {
+    jsmn_parser parser;
+    jsmntok_t tokens[32];  // Increase this if your JSON is large
+
+
+    jsmn_init(&parser);
+    int token_count = jsmn_parse(&parser, json_str, strlen(json_str), tokens, 32);
+
+    if (token_count < 0) {
+        printf("Failed to parse JSON: %d\n", token_count);
+        return;
+    }
+
+    printf("Parsed JSON with %d tokens\n", token_count);
+
+    // Example: Extracting a key-value pair
+    for (int i = 0; i < token_count; i++) {
+        if (tokens[i].type == JSMN_STRING && 
+            strncmp(json_str + tokens[i].start, "message", tokens[i].end - tokens[i].start) == 0) {
+
+            jsmntok_t *value = &tokens[i + 1];
+            printf("Found key 'message': %.*s\n", value->end - value->start, json_str + value->start);
+        }
+    }
+}
+
+
+// function call for testing HTTP client request to our Flask server
+// void test_http_request() {
+    
+//     // condfiguring the client struct for WHERE we want to connect to 
+//     esp_http_client_config_t config = {
+//         .url = "http://172.20.10.3:5000/ping",
+//         //.event_handler = _http_event_handler,
+//         .auth_type = HTTP_AUTH_TYPE_NONE,
+//     };
+//     esp_http_client_handle_t client = esp_http_client_init(&config);
+
+//     // sending the request as a client
+//     // when request is made, our event handler will fill the response buffer global variable with the response
+//     esp_err_t err = esp_http_client_perform(client);
+//     if (err == ESP_OK) {
+//         printf("REACHED1\n");
+//         printf("%s\n", response_buffer);
+//         printf("HTTP GET Status = %d, content_length = %lld\n", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
+//         printf("REACHED2\n");
+
+//         // passing the response buffer to the JSON parser for output
+//         parse_json(response_buffer);
+
+//     } else {
+//         // something went wrong, print the err using esp_err_to_name()
+//         printf("HTTP GET request failed: %s\n", esp_err_to_name(err));
+//     }
+
+//     // freeing memmory of the client struct
+//     esp_http_client_cleanup(client);
+// }
+
+
+
+
+// Callback to handle the received data
+esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
+    switch (evt->event_id) {
+        case HTTP_EVENT_ERROR:
+            printf("HTTP_EVENT_ERROR");
+            break;
+        case HTTP_EVENT_ON_DATA:
+            if (evt->data_len > 0) {
+                printf("HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+                printf("Received data: %s", (char *)evt->data);
+            }
+            break;
+        default:
+            break;
+    }
+    return ESP_OK;
+}
+
+void test_http_request() {
+    esp_http_client_config_t config = {
+        .url = "http://172.20.10.3:5000/ping", // Replace with your Flask server's IP address
+        .event_handler = _http_event_handler,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    // Perform HTTP GET request
+    esp_err_t err = esp_http_client_perform(client);
+
+    if (err == ESP_OK) {
+        printf("HTTP GET Status = %d, content_length = %lld", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
+    } else {
+        printf("HTTP GET request failed: %s", esp_err_to_name(err));
+    }
+
+    // Clean up
+    esp_http_client_cleanup(client);
+}
+
+
+// TODO: STEVEN MAKE THIS 
+// THIS IS THE FUNCTION TO CALL TO REPEATEDLT ON COMMAND I THINK
+esp_err_t connect_tcp_server()
+{
+
+    return ESP_OK;
+}
+
