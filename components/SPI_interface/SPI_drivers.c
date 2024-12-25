@@ -10,13 +10,12 @@
 
 
 // ==== Defines needed for SPI as well as other handles ===============
-#define PANEL_HOST    SPI2_HOST
+#define RF_HOST    SPI2_HOST
 
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  19
 #define PIN_NUM_CS   22
-
 #define PIN_NUM_DC   21
 #define PIN_NUM_RST  18
 #define PIN_NUM_BCKL 5
@@ -117,9 +116,10 @@ void init_spi()
     };
 
     //Initialize the SPI bus
-    esp_err_t ret = spi_bus_initialize(PANEL_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    esp_err_t ret = spi_bus_initialize(RF_HOST, &buscfg, SPI_DMA_CH_AUTO);
     ESP_ERROR_CHECK(ret);
+
     //Attach the LCD to the SPI bus
-    ret = spi_bus_add_device(PANEL_HOST, &devcfg, &spi);
+    ret = spi_bus_add_device(RF_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
 }

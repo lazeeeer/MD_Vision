@@ -5,6 +5,7 @@
 
 // custom cpp libraries
 #include "rf_comms.h"
+#include "EspHal.h"
 
 // extern c wrapper for original source code
 #ifdef __cplusplus
@@ -46,6 +47,19 @@ extern "C" {
 
 
 // ==== testing ======================
+
+// Define SPI and GPIO pins
+#define SPI_MISO_PIN 19
+#define SPI_MOSI_PIN 23
+#define SPI_SCK_PIN  18
+#define SPI_CS_PIN    5
+#define RFM_RESET_PIN 4  // Define an appropriate GPIO for RESET
+
+
+EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
+RF69 radio = new Module(hal, SPI_CS_PIN, 26, RFM_RESET_PIN, 21);
+PagerClient pager(&radio);
+
 
 #define UART_PORT_NUM UART_NUM_0
 #define UART_BAUD_RATE 115200
@@ -109,7 +123,6 @@ void UART_input(void *param)
 // task to taken in data and update the display
 void queue_to_disp(void *param)
 {
-
     char msg[MSG_CHAR_LEN];
 
     for (;;)
@@ -134,11 +147,64 @@ void queue_to_disp(void *param)
 }
 
 
+
+
+void receive_transmission(void *param)
+{
+    uint8_t buffer[64];
+    size_t length = sizeof(buffer);
+    int state;
+    const int pin = 12;
+    uint32_t myAddress = 12345;
+
+    // turning on radio and setting parameters
+    state = radio.begin();
+    if (state == RADIOLIB_ERR_NONE)
+    {
+        printf("radio started just fine!\n");
+    }
+    state = pager.begin(434.0, 1200, false, 4500);
+    if (state == RADIOLIB_ERR_NONE)
+    {
+        printf("radio started just fine!\n");
+    }
+    state = pager.startReceive(pin, myAddress, 12345);
+
+    // error check to see if we turned on fine
+    if (state == RADIOLIB_ERR_NONE)
+    {
+        printf("radio started just fine!\n");
+    }
+
+    // task main loop...
+    for (;;)
+    {
+        // checking the interrupt pin
+        //printf("poll loop ran once...\n");
+
+        size_t packets = pager.available();
+        if (packets > 0)
+        {
+            std::cout << "there are this many packets: " << packets << std::endl;
+
+            uint8_t byteBuff[128];
+            size_t len = 0;
+            uint32_t rec_addr;
+
+            state = pager.readData(byteBuff, &len, &rec_addr);
+            printf("messages were received?? - message is: %s\n", byteBuff);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+
+
 void printHello(void)
 {
     std::cout << "im calling this from a c++ command" << std::endl;
 }
-
 
 
 /*
@@ -158,32 +224,37 @@ extern "C" void app_main(void)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
 
-
-    // testing wifi comms shid
-    // init_wifi_comms();
-    // test_http_request();
-
-
     // Install UART driver using an event queue here
     uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
     uart_param_config(UART_PORT_NUM, &uart_config);
     uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
+
+
+    // testing wifi comms shid
+    // init_wifi_comms();
+    // test_http_request();
+
     //creating a queue to pass information around
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
     // initing the display and making sure its clear
-    init_display();
-    printf("Diplayed init'd\n");
-    clear_disp();
-    display_main_hud();
+    // init_display();
+    // clear_disp();
+    // display_main_hud();
 
     //calling the init radio function AS A C++ FUNCTION CALL
-    initRadio();
+    //initRadio();
+
+
+
+
+
 
     // CREATING TASKS
     xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
     xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
+    xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
 
 
     // end of main...

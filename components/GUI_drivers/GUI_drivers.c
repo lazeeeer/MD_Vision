@@ -16,7 +16,7 @@
 #define PIN_NUM_BCKL 5
 
 
-// ==== List of main wrapper functions editing display ========== //
+// ==== List of wrapper functions editing display ========== //
 
 // making a u8g2 object for our main display
 static u8g2_t mainDisp;
