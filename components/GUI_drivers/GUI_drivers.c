@@ -7,16 +7,17 @@
 #include "u8g2_esp32_hal.h"
 
 // Defines needed for u8g2 SPI communication
-#define PIN_NUM_MISO 25
-#define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK  19
-#define PIN_NUM_CS   22
-#define PIN_NUM_DC   21
-#define PIN_NUM_RST  18
-#define PIN_NUM_BCKL 5
+#define SPI_MOSI_PIN    23
+#define SPI_MISO_PIN    19
+#define SPI_SCK_PIN     18
+#define SPI_CS_PIN      6  // this if for DISPLAY only
+#define SPI_RESET_PIN   3  // this is for DISPLAY only 
+
+#define PIN_NUM_DC      21
+#define PIN_NUM_BCKL    5
 
 
-// ==== List of wrapper functions editing display ========== //
+// ==== Static items for controlling display ========== //
 
 // making a u8g2 object for our main display
 static u8g2_t mainDisp;
@@ -27,17 +28,18 @@ QueueHandle_t displayQueue;
 
 // ==== List of main wrapper functions editing display ========== //
 
+// TODO: TEST THE INTI WITH NEW PIN DEFINES
 void init_display()
 {
     //calling default hardware abstaction layer for esp32
     u8g2_esp32_hal_t u8g2_esp32_hal = U8G2_ESP32_HAL_DEFAULT;
 
     //passing all pins needed for SPI comms and HAL
-    u8g2_esp32_hal.clk   = PIN_NUM_CLK;
-    u8g2_esp32_hal.mosi  = PIN_NUM_MOSI;
-    u8g2_esp32_hal.cs    = PIN_NUM_CS;
+    u8g2_esp32_hal.clk   = SPI_SCK_PIN;
+    u8g2_esp32_hal.mosi  = SPI_MOSI_PIN;
+    u8g2_esp32_hal.cs    = SPI_CS_PIN;
     u8g2_esp32_hal.dc    = PIN_NUM_DC;
-    u8g2_esp32_hal.reset = PIN_NUM_RST;
+    u8g2_esp32_hal.reset = SPI_RESET_PIN;
 
     //initializin the HAL
     u8g2_esp32_hal_init(u8g2_esp32_hal);

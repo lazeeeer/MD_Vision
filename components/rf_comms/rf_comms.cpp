@@ -3,16 +3,89 @@
 #include <RadioLib.h>
 
 #include "rf_comms.h"
+#include "EspHal.h"
 
 using namespace std;
 
-// ==== Testing Shid =====================================
+// Defines of pins needed for RadioLib SPI interface
+#define SPI_MOSI_PIN 23
+#define SPI_MISO_PIN 19
+#define SPI_SCK_PIN  18
+#define SPI_CS_PIN    5  // this is for RF only
+#define RFM_RESET_PIN 4  // this is for RF only
 
 
-// RF69 radio = new Module(10, 2, 9, 3);
-// PagerClient pager(&radio);
+// ==== Static items for controlling display ========== //
+static EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
+static RF69 radio = new Module(hal, SPI_CS_PIN, 26, RFM_RESET_PIN, 21);
+static PagerClient pager(&radio);
 
-void initRadio()
+
+// ==== Functions for init'ing and interacting with module ========== //
+
+//TODO: TEST ALL THE PAGER CODE NOW AS CALLABLE FUNCTIONS
+
+// init the module and put it into a pager mode that will LISTEN only
+void init_radio(void)
 {
-    cout << "This will init the radio:\n";
+    int state;   // variable for checking state of the RadioLib calls
+    const int digitalDataIn = 12;
+    uint32_t myAddress = 12345;
+
+    // turning on radio
+    state = radio.begin();
+    if (state == RADIOLIB_ERR_NONE) {
+        printf("radio started just fine!\n");
+    }
+    // starting the radio as a PAGER
+    state = pager.begin(434.0, 1200, false, 4500);
+    if (state == RADIOLIB_ERR_NONE)
+    {
+        printf("radio started just fine!\n");
+    }
+    // putting the pager into RECEIVE mode
+    state = pager.startReceive(digitalDataIn, myAddress, 12345);
+    if (state == RADIOLIB_ERR_NONE)
+    {
+        printf("radio started just fine!\n");
+    }
+
+    // pager is ready to be read from using the readData() function when
+    // a message is seen using the .available() function
 }
+
+
+// check and return number of available messages on the pager
+int get_numMessages()
+{
+    size_t messages = pager.available();
+
+    if ( messages > 0 ) {
+        return messages;
+    }
+    else {
+        return 0;
+    }
+}
+
+
+// function to read a message and return len of packet
+int get_message( uint8_t* byteBuffer, size_t bufferLen )
+{
+    size_t len;                 // len of packet received -> for error checking
+    uint32_t rec_address;       // address that sent the packet
+
+    // filling buffer from calling function using readData()
+    int state = pager.readData(byteBuffer, &len, &rec_address);
+
+    if (state != RADIOLIB_ERR_NONE)
+    {
+        printf("could not read a message for some reason...\n");
+        return state;   // returning RadioLib error code for debug
+    }
+    else {
+        return RADIOLIB_ERR_NONE;
+    }
+}
+
+

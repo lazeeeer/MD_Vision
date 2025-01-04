@@ -19,6 +19,9 @@ extern "C" {
     #include "u8g2.h"
     #include "u8g2_esp32_hal.h"
 
+    // including component containing init and POST code
+
+
     // including camera and sd libraries
     #include "esp_camera.h"
     #include "camera.h"
@@ -34,7 +37,6 @@ extern "C" {
     #include "driver/gpio.h"
     #include "driver/spi_master.h"
 
-
     // including UART libraries
     #include "driver/uart.h"
 
@@ -49,16 +51,16 @@ extern "C" {
 // ==== testing ======================
 
 // Define SPI and GPIO pins
-#define SPI_MISO_PIN 19
-#define SPI_MOSI_PIN 23
-#define SPI_SCK_PIN  18
-#define SPI_CS_PIN    5
-#define RFM_RESET_PIN 4  // Define an appropriate GPIO for RESET
+// #define SPI_MOSI_PIN 23
+// #define SPI_MISO_PIN 19
+// #define SPI_SCK_PIN  18
+// #define SPI_CS_PIN    5  // this is for RF only
+// #define RFM_RESET_PIN 4  // this is for RF only
 
 
-EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
-RF69 radio = new Module(hal, SPI_CS_PIN, 26, RFM_RESET_PIN, 21);
-PagerClient pager(&radio);
+// EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
+// RF69 radio = new Module(hal, SPI_CS_PIN, 26, RFM_RESET_PIN, 21);
+// PagerClient pager(&radio);
 
 
 #define UART_PORT_NUM UART_NUM_0
@@ -148,33 +150,33 @@ void queue_to_disp(void *param)
 
 
 
-
+// KEEP THIS CODE - WORKING EXAMPLE OF GETTING RF COMMS WORKING
 void receive_transmission(void *param)
 {
     uint8_t buffer[64];
     size_t length = sizeof(buffer);
     int state;
-    const int pin = 12;
+    const int digitalDataIn = 12;
     uint32_t myAddress = 12345;
 
-    // turning on radio and setting parameters
-    state = radio.begin();
-    if (state == RADIOLIB_ERR_NONE)
-    {
-        printf("radio started just fine!\n");
-    }
-    state = pager.begin(434.0, 1200, false, 4500);
-    if (state == RADIOLIB_ERR_NONE)
-    {
-        printf("radio started just fine!\n");
-    }
-    state = pager.startReceive(pin, myAddress, 12345);
+    // // turning on radio and setting parameters
+    // state = radio.begin();
+    // if (state == RADIOLIB_ERR_NONE) {
+    //     printf("radio started just fine!\n");
+    // }
+    // state = pager.begin(434.0, 1200, false, 4500);
+    // if (state == RADIOLIB_ERR_NONE)
+    // {
+    //     printf("radio started just fine!\n");
+    // }
 
-    // error check to see if we turned on fine
-    if (state == RADIOLIB_ERR_NONE)
-    {
-        printf("radio started just fine!\n");
-    }
+    // state = pager.startReceive(digitalDataIn, myAddress, 12345);
+
+    // // error check to see if we turned on fine
+    // if (state == RADIOLIB_ERR_NONE)
+    // {
+    //     printf("radio started just fine!\n");
+    // }
 
     // task main loop...
     for (;;)
@@ -182,18 +184,18 @@ void receive_transmission(void *param)
         // checking the interrupt pin
         //printf("poll loop ran once...\n");
 
-        size_t packets = pager.available();
-        if (packets > 0)
-        {
-            std::cout << "there are this many packets: " << packets << std::endl;
+        // //size_t packets = pager.available();
+        // if (packets > 0)
+        // {
+        //     std::cout << "there are this many packets: " << packets << std::endl;
 
-            uint8_t byteBuff[128];
-            size_t len = 0;
-            uint32_t rec_addr;
+        //     uint8_t byteBuff[128];
+        //     size_t len = 0;
+        //     uint32_t rec_addr;
 
-            state = pager.readData(byteBuff, &len, &rec_addr);
-            printf("messages were received?? - message is: %s\n", byteBuff);
-        }
+        //     //state = pager.readData(byteBuff, &len, &rec_addr);
+        //     printf("messages were received?? - message is: %s\n", byteBuff);
+        // }
 
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -201,16 +203,10 @@ void receive_transmission(void *param)
 
 
 
-void printHello(void)
-{
-    std::cout << "im calling this from a c++ command" << std::endl;
-}
-
-
 /*
     ***NOTE
     THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
-    ADD / TEST ANYTHING YOU WANT IN HEAR AS A 'WRAPPER FUNCTION' CALLED FROM OTHER .C FILES
+    ADD/TEST ANYTHING YOU WANT IN HEAR AS A 'WRAPPER FUNCTION' CALLED FROM OTHER .C FILES
 */
 extern "C" void app_main(void)
 {
@@ -230,26 +226,14 @@ extern "C" void app_main(void)
     uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
 
-
     // testing wifi comms shid
-    // init_wifi_comms();
-    // test_http_request();
 
     //creating a queue to pass information around
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
-    // initing the display and making sure its clear
-    // init_display();
-    // clear_disp();
-    // display_main_hud();
 
     //calling the init radio function AS A C++ FUNCTION CALL
     //initRadio();
-
-
-
-
-
 
     // CREATING TASKS
     xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
