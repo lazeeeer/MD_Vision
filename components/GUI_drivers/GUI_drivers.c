@@ -2,6 +2,13 @@
 #include <string.h>
 #include "GUI_drivers.h"
 
+// including the FreeRTOS task libraries
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+// including radio drivers to get number of messages available
+#include "rf_comms.h"
+
 //including the u8g2 and u8g2_hal libs
 #include "u8g2.h"
 #include "u8g2_esp32_hal.h"
@@ -15,6 +22,11 @@
 
 #define PIN_NUM_DC      21
 #define PIN_NUM_BCKL    5
+
+#define DISP_BUTTON     2   // GPIO display button is connected to
+#define DEBOUNCE_DELAY  50  // delay in ms for debouncing check
+
+#define RADIOLIB_ERR_NONE 0
 
 
 // ==== Static items for controlling display ========== //
@@ -98,7 +110,8 @@ void display_clear_msg_text()
 // simple function to update message notification on display
 void display_update_notif()
 {
-    if ( uxQueueGetQueueNumber(displayQueue) > 0 )
+    // checking number of available messages in the RF69 module's memory
+    if ( 1 > 0 )
     {
         // code to add-in notif symbol from display
         u8g2_SetDrawColor(&mainDisp, 1);
@@ -110,7 +123,6 @@ void display_update_notif()
         u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
     }
 }
-
 
 
 // write a simple verticle line to make sure display buffer has enough allocated memory
@@ -171,50 +183,102 @@ void write_to_disp(const char* str)
 // Main display control loop to run in the task
 void displayLoop(void *params)
 {
-   static int state = 0; 
+    // variables for debouncing logic
+    static int lastState = 1;      // assuming pull-up resistor on button
+    static int currState;
+    static int stableState = 1;
+    static int debounceCounter = 0;
+
+    char message[64];    // buffer to take in the packets from RF module
+
+   static int processState = 0; 
     /* display loop state machine
         0 - idle,       - wait for message on queue     - go to 1
         1 - displaying, - look for button press         - go to 0
     */
 
-    // hold the msg struct incoming from the queue
-    display_msg_package_t received_msg;
+   // setting up the GPIO that the button is connected to 
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << DISP_BUTTON),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+    };
+    gpio_config(&io_conf);
 
     // main event loop
     while (true)
     {
-        // always check and update msg notification icon
-        void display_update_notif();
+        display_update_notif();     // check and update each iteration
 
-        if (state == 0)     // idle and waiting for button input
+        if (processState == 0)     // idle - waiting for message_available && button_press
         {
-            // Check if we have a new message to update display
-            if ( uxQueueGetQueueNumber > 0 && true /* checking button state variable */ ) {
+            // getting the button state
+            currState = gpio_get_level(DISP_BUTTON);
 
-                xQueueReceive(displayQueue, &received_msg, portMAX_DELAY);
-                write_to_disp(received_msg.message);
+            // debouncing check
+            if ( currState != lastState )
+            {
+                debounceCounter++;
+                if (debounceCounter >= (DEBOUNCE_DELAY / 10))
+                {
+                    stableState = currState;
+                    lastState = currState;
+                    debounceCounter = 0;
 
-                // set button state back down to zero
+                    // debounce passed - reacting to button press now
+                    if ( (stableState = 0) && (get_numMessages() > 0))
+                    {
+                        printf("REACHED DEBOUNCE PASS AND MESSAGES IN QUEUE...\n");
 
-                // change to next state 
-                state = 1;
+                        if ( get_message(&message, sizeof(message)) == RADIOLIB_ERR_NONE )
+                        {
+                            // successfully filled message buffer
+                            write_to_disp(message);
+                        }
+
+                        // changing to next state that waits to clear message
+                        processState = 1;
+                    }
+
+                }
+            }else {
+                debounceCounter = 0;    // resetting debounce counter if state remaines stable
             }
-            //one of prev conditions not true... continue
 
         }
-        else if (state == 1)    // displaying message, waiting for next button input
+        else if (processState == 1)    // displaying message, waiting for next button input
         {
-            // search for button input to indicate done reading
-            if ( true /* code that looks for button input */ )
+
+            // getting the button state
+            currState = gpio_get_level(DISP_BUTTON);
+
+            // debouncing check
+            if ( currState != lastState )
             {
-                /* */                       // set button state back down to zero
-                display_clear_msg_text();   // clear msg text area on display
-                state = 0;                  // set state back to idle + wait for input
+                debounceCounter++;
+                if (debounceCounter >= (DEBOUNCE_DELAY / 10))
+                {
+                    stableState = currState;
+                    lastState = currState;
+                    debounceCounter = 0;
+
+                    // debounce passed - reacting to button press now
+                    if ( stableState == 0 )
+                    {
+                        display_clear_msg_text();
+                        processState = 1;   // switching state back to idle
+                    }
+
+                }
+            }else {
+                debounceCounter = 0;    // resetting debounce counter if state remaines stable
             }
+
+
         }
 
         // yield to scheduler for a bit between checks
-        vTaskDelay(250/portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
 }

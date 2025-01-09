@@ -5,7 +5,6 @@
 
 // custom cpp libraries
 #include "rf_comms.h"
-#include "EspHal.h"
 
 // extern c wrapper for original source code
 #ifdef __cplusplus
@@ -18,6 +17,9 @@ extern "C" {
     // including graphics libraries
     #include "u8g2.h"
     #include "u8g2_esp32_hal.h"
+
+    // including header files with all globals needed
+    #include "sync_objects.h"
 
     // including component containing init and POST code
 
@@ -34,6 +36,7 @@ extern "C" {
     // including FreeRTOS driver libraries
     #include "freertos/FreeRTOS.h"
     #include "freertos/task.h"
+    #include "freertos/semphr.h"
     #include "driver/gpio.h"
     #include "driver/spi_master.h"
 
@@ -48,20 +51,37 @@ extern "C" {
 #endif
 
 
-// ==== testing ======================
-
-// Define SPI and GPIO pins
-// #define SPI_MOSI_PIN 23
-// #define SPI_MISO_PIN 19
-// #define SPI_SCK_PIN  18
-// #define SPI_CS_PIN    5  // this is for RF only
-// #define RFM_RESET_PIN 4  // this is for RF only
 
 
-// EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
-// RF69 radio = new Module(hal, SPI_CS_PIN, 26, RFM_RESET_PIN, 21);
-// PagerClient pager(&radio);
+// ==== Definitions needed for main program ==== //
 
+// global control objects...
+SemaphoreHandle_t xMsgBufferSemphr = NULL;
+
+// local variables for main...
+
+
+
+// ==== Functions for main loop ================ //
+
+esp_err_t init_globals(void)
+{
+    // init the msg buffer semaphore
+    xMsgBufferSemphr = xSemaphoreCreateBinary();
+    if (xMsgBufferSemphr == NULL)
+    {
+        printf("Message buffer semaphore could not be created...\n ");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+    // end of functino...
+}
+
+
+
+
+// ==== testing stuff ======================
 
 #define UART_PORT_NUM UART_NUM_0
 #define UART_BAUD_RATE 115200
@@ -203,6 +223,7 @@ void receive_transmission(void *param)
 
 
 
+
 /*
     ***NOTE
     THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
@@ -210,6 +231,16 @@ void receive_transmission(void *param)
 */
 extern "C" void app_main(void)
 {
+    // calling function to init all variables from the sync_objects.h file`
+    esp_err_t initCheck = init_globals();
+    if ( initCheck != ESP_OK )
+    {
+        printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
+        abort();
+    }
+
+
+    // ==== UART TESTING STUFF ======================== //
 
     // Configuration structure for UART parameters
     uart_config_t uart_config = {
@@ -225,21 +256,28 @@ extern "C" void app_main(void)
     uart_param_config(UART_PORT_NUM, &uart_config);
     uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-
-    // testing wifi comms shid
-
     //creating a queue to pass information around
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
+    // ==== UART TESTING STUFF ======================== //
 
-    //calling the init radio function AS A C++ FUNCTION CALL
-    //initRadio();
 
-    // CREATING TASKS
+
+
+
+
+
+
+
+
+
+
+
+    // --- CREATING TASKS --- //
     xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
     xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
     xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
-
+    xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
 
     // end of main...
 }

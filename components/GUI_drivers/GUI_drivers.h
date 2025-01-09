@@ -46,3 +46,5 @@ void display_clear_msg_text();
 
 void display_main_hud(void);
 
+void displayLoop(void *params);
+

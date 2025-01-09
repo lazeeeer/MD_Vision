@@ -25,6 +25,11 @@ static PagerClient pager(&radio);
 
 //TODO: TEST ALL THE PAGER CODE NOW AS CALLABLE FUNCTIONS
 
+extern "C" int testFunc(void)
+{
+    return 420;
+}
+
 // init the module and put it into a pager mode that will LISTEN only
 void init_radio(void)
 {
