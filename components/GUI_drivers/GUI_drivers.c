@@ -125,6 +125,13 @@ void display_update_notif()
 }
 
 
+// simple function to read-in the battery voltage and update the display
+void display_update_battery()
+{
+    
+}
+
+
 // write a simple verticle line to make sure display buffer has enough allocated memory
 void test_pixels()
 {
@@ -179,7 +186,9 @@ void write_to_disp(const char* str)
 
 }
 
-// TODO : GET BUTTON STATE CHECKING WORKING AND TESTED
+// TODO :   GET BUTTON STATE CHECKING WORKING AND TESTED
+//          GET SEMAPHORE WORKING FOR BUFFER READING AND WRITING            
+
 // Main display control loop to run in the task
 void displayLoop(void *params)
 {
@@ -208,73 +217,42 @@ void displayLoop(void *params)
     // main event loop
     while (true)
     {
-        display_update_notif();     // check and update each iteration
+        display_update_notif();     // check and update notif
+        display_update_battery();   // check and update battery
 
         if (processState == 0)     // idle - waiting for message_available && button_press
         {
-            // getting the button state
-            currState = gpio_get_level(DISP_BUTTON);
 
-            // debouncing check
-            if ( currState != lastState )
+            // Check pressed button AND messages avaialable
+            // NOTE: button press is debounced in hardware with RC circuit
+            if ( (gpio_get_level(DISP_BUTTON) == 0) && (get_numMessages() > 0))
             {
-                debounceCounter++;
-                if (debounceCounter >= (DEBOUNCE_DELAY / 10))
+                printf("REACHED DEBOUNCE PASS AND MESSAGES IN QUEUE...\n");
+
+                if ( get_message(&message, sizeof(message)) == RADIOLIB_ERR_NONE )
                 {
-                    stableState = currState;
-                    lastState = currState;
-                    debounceCounter = 0;
-
-                    // debounce passed - reacting to button press now
-                    if ( (stableState = 0) && (get_numMessages() > 0))
-                    {
-                        printf("REACHED DEBOUNCE PASS AND MESSAGES IN QUEUE...\n");
-
-                        if ( get_message(&message, sizeof(message)) == RADIOLIB_ERR_NONE )
-                        {
-                            // successfully filled message buffer
-                            write_to_disp(message);
-                        }
-
-                        // changing to next state that waits to clear message
-                        processState = 1;
-                    }
-
+                    // successfully filled message buffer
+                    write_to_disp(message);
                 }
-            }else {
-                debounceCounter = 0;    // resetting debounce counter if state remaines stable
+                // changing to next state that waits to clear message
+                processState = 1;
             }
 
+            // end of state...
         }
         else if (processState == 1)    // displaying message, waiting for next button input
         {
-
-            // getting the button state
-            currState = gpio_get_level(DISP_BUTTON);
-
-            // debouncing check
-            if ( currState != lastState )
+            // checking same button state 
+            if ( gpio_get_level(DISP_BUTTON) == 0 )
             {
-                debounceCounter++;
-                if (debounceCounter >= (DEBOUNCE_DELAY / 10))
+                display_clear_msg_text();
+
+                // handling when the button is held-down
+                if ( gpio_get_level(DISP_BUTTON) == 1)
                 {
-                    stableState = currState;
-                    lastState = currState;
-                    debounceCounter = 0;
-
-                    // debounce passed - reacting to button press now
-                    if ( stableState == 0 )
-                    {
-                        display_clear_msg_text();
-                        processState = 1;   // switching state back to idle
-                    }
-
+                    processState = 0;   // switching state back to idle
                 }
-            }else {
-                debounceCounter = 0;    // resetting debounce counter if state remaines stable
             }
-
-
         }
 
         // yield to scheduler for a bit between checks

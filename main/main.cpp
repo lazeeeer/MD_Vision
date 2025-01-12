@@ -277,7 +277,7 @@ extern "C" void app_main(void)
     xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
     xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
     xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
-    xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
+    //xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
 
     // end of main...
 }
