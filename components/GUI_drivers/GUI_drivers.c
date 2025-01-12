@@ -17,8 +17,8 @@
 #define SPI_MOSI_PIN    23
 #define SPI_MISO_PIN    19
 #define SPI_SCK_PIN     18
-#define SPI_CS_PIN      6  // this if for DISPLAY only
-#define SPI_RESET_PIN   3  // this is for DISPLAY only 
+#define SPI_CS_PIN      0  // this if for DISPLAY only
+#define SPI_RESET_PIN   2  // this is for DISPLAY only 
 
 #define PIN_NUM_DC      21
 #define PIN_NUM_BCKL    5
@@ -186,18 +186,12 @@ void write_to_disp(const char* str)
 
 }
 
-// TODO :   GET BUTTON STATE CHECKING WORKING AND TESTED
-//          GET SEMAPHORE WORKING FOR BUFFER READING AND WRITING            
+
+
 
 // Main display control loop to run in the task
 void displayLoop(void *params)
 {
-    // variables for debouncing logic
-    static int lastState = 1;      // assuming pull-up resistor on button
-    static int currState;
-    static int stableState = 1;
-    static int debounceCounter = 0;
-
     char message[64];    // buffer to take in the packets from RF module
 
    static int processState = 0; 
@@ -222,7 +216,6 @@ void displayLoop(void *params)
 
         if (processState == 0)     // idle - waiting for message_available && button_press
         {
-
             // Check pressed button AND messages avaialable
             // NOTE: button press is debounced in hardware with RC circuit
             if ( (gpio_get_level(DISP_BUTTON) == 0) && (get_numMessages() > 0))
@@ -237,7 +230,6 @@ void displayLoop(void *params)
                 // changing to next state that waits to clear message
                 processState = 1;
             }
-
             // end of state...
         }
         else if (processState == 1)    // displaying message, waiting for next button input

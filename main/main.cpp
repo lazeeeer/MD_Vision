@@ -262,15 +262,10 @@ extern "C" void app_main(void)
     // ==== UART TESTING STUFF ======================== //
 
 
-
-
-
-
-
-
-
-
-
+    // init and test the display
+    init_display();
+    clear_disp();
+    display_main_hud();
 
 
     // --- CREATING TASKS --- //

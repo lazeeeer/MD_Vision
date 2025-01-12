@@ -16,23 +16,25 @@
 
 // ==== Defines For Camera ================================
 
+#define CAM_BUTTON   14 
+
 // specifically for esp32-wrover
-#define CAM_PIN_PWDN -1  //power down is not used
-#define CAM_PIN_RESET -1 //software reset will be performed
-#define CAM_PIN_XCLK 21
-#define CAM_PIN_SIOD 26
-#define CAM_PIN_SIOC 27
-#define CAM_PIN_D7 35
-#define CAM_PIN_D6 34
-#define CAM_PIN_D5 39
-#define CAM_PIN_D4 36
-#define CAM_PIN_D3 19
-#define CAM_PIN_D2 18
-#define CAM_PIN_D1 5
-#define CAM_PIN_D0 4
-#define CAM_PIN_VSYNC 25
-#define CAM_PIN_HREF 23
-#define CAM_PIN_PCLK 22
+#define CAM_PIN_PWDN    -1  //power down is not used
+#define CAM_PIN_RESET   -1 //software reset will be performed
+#define CAM_PIN_XCLK    21
+#define CAM_PIN_SIOD    26
+#define CAM_PIN_SIOC    27
+#define CAM_PIN_D7      35
+#define CAM_PIN_D6      34
+#define CAM_PIN_D5      39
+#define CAM_PIN_D4      36
+#define CAM_PIN_D3      19
+#define CAM_PIN_D2      18
+#define CAM_PIN_D1      5
+#define CAM_PIN_D0      4
+#define CAM_PIN_VSYNC   25
+#define CAM_PIN_HREF    23
+#define CAM_PIN_PCLK    22
 
 
 // ==== Defined Variables and Structures =================
@@ -122,6 +124,7 @@ esp_err_t take_picture()
     if (pic != NULL) {
         esp_camera_fb_return(pic);
     }
+
     // debug prompt
     printf("get_picture(): taking picture now\n");
 
@@ -139,3 +142,46 @@ esp_err_t take_picture()
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     return ESP_OK;
 }
+
+
+// main task loop...
+
+void camera_task( void *param )
+{
+    for (;;)
+    {
+        // expecting the buttong to be debounced already
+        if ( gpio_get_level(CAM_BUTTON) == 0 )
+        {
+            // attempting to take a picture from the camera
+            if ( take_picture() == ESP_OK )
+            {
+                printf("task took photo...\n");
+
+                // pass the photo by reference to http process function...
+                if ( /*function here to check and pass http func... */ 1)
+                {
+                    printf("pic sent to server...");
+                }
+                else{
+                    printf("pic NOT sent to server...");
+                }
+            }
+            else
+            {
+                printf("task was not able to take a photo...\n");
+            }
+
+            // add delay of 5 seconds to ensure we dont take multiple photos
+            // this will let other tasks run within those 5 seconds before polling again
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));    // poll the camera every second
+    }
+}
+
+
+
+
+
