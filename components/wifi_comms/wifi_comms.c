@@ -200,7 +200,7 @@ esp_err_t connect_wifi()
 
 // functino for calling to and initing wifi connection using functions above
 // this function is to be called from main during the POST tests
-void init_wifi_comms()
+esp_err_t init_wifi_comms()
 {
     esp_err_t status = WIFI_FAILURE;
 
@@ -219,7 +219,10 @@ void init_wifi_comms()
     if (WIFI_SUCCESS != status)
     {
         ESP_LOGI(TAG, "Failed to associate to AP, dying...");
-        return;
+        return ESP_FAIL;
+    }
+    else {
+        return ESP_OK;  // case where is WAS able to connect
     }
 
 }

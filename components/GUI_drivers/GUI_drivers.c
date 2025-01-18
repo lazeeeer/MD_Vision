@@ -5,6 +5,7 @@
 // including the FreeRTOS task libraries
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/adc.h"
 
 // including radio drivers to get number of messages available
 #include "rf_comms.h"
@@ -26,7 +27,15 @@
 #define DISP_BUTTON     2   // GPIO display button is connected to
 #define DEBOUNCE_DELAY  50  // delay in ms for debouncing check
 
-#define RADIOLIB_ERR_NONE 0
+#define RADIOLIB_ERR_NONE 0 // define used to know if we got error from radio functions
+
+// Defines for battery capacity meaurment circuits
+#define ADC_CHANNEL ADC1_CHANNEL_6      // associated with pin 34 on the board
+#define ADC_WIDTH   ADC_WIDTH_BIT_12
+#define ADC_ATTEN   ADC_ATTEN_DB_0
+#define BATTERY_MIN 3.0
+#define BATTERY_MAX 4.3
+
 
 
 // ==== Static items for controlling display ========== //
@@ -37,11 +46,14 @@ static u8g2_t mainDisp;
 // define the queue from GUI_drivers.h
 QueueHandle_t displayQueue;
 
+// variable for holding and update the measured battery capacity
+static float capacity;
+
 
 // ==== List of main wrapper functions editing display ========== //
 
 // TODO: TEST THE INTI WITH NEW PIN DEFINES
-void init_display()
+esp_err_t init_display()
 {
     //calling default hardware abstaction layer for esp32
     u8g2_esp32_hal_t u8g2_esp32_hal = U8G2_ESP32_HAL_DEFAULT;
@@ -57,7 +69,7 @@ void init_display()
     u8g2_esp32_hal_init(u8g2_esp32_hal);
 
     // using noname0_f -> gives a full frame buffer with 10124 bytes
-    u8g2_Setup_ssd1309_128x64_noname0_f(&mainDisp, U8G2_R0, u8g2_esp32_spi_byte_cb, u8g2_esp32_gpio_and_delay_cb);
+    u8g2_Setup_ssd1309_128x64_noname0_f(&mainDisp, U8G2_R2, u8g2_esp32_spi_byte_cb, u8g2_esp32_gpio_and_delay_cb);
 
     // initing the queue and giving it a size of 10
     displayQueue = xQueueCreate(10, sizeof(display_msg_package_t));
@@ -66,7 +78,11 @@ void init_display()
     u8g2_InitDisplay(&mainDisp);
     u8g2_SetPowerSave(&mainDisp, 0);    // turning the display on
     u8g2_ClearDisplay(&mainDisp);
+
+    // setting the main HUD after initialization;
+    display_main_hud();
     
+    return ESP_OK;
 }
 
 // function to clear the ENTIRE display
@@ -128,7 +144,22 @@ void display_update_notif()
 // simple function to read-in the battery voltage and update the display
 void display_update_battery()
 {
-    
+    int adc_reading = adc1_get_raw(ADC_CHANNEL);
+    //uint32_t read_voltage = 0b0;
+    printf("Raw ADC reading was: %d\n", adc_reading);
+
+    // calculating percentage from ADC read
+    if ( adc_reading >=  BATTERY_MIN )
+    {
+        capacity = ((float)(adc_reading - BATTERY_MIN) / (BATTERY_MAX - BATTERY_MIN) ) * 100;
+    }
+    else
+    {
+        printf("could not measure batter for some reason...\n");
+    }
+
+    // TODO: write function to display battery % in top-left corner
+    // ...
 }
 
 

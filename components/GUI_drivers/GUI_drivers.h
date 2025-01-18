@@ -38,7 +38,7 @@ typedef struct
 
 
 
-void init_display();
+esp_err_t init_display();
 void clear_disp();
 void write_to_disp(const char* str);
 void test_pixels();

@@ -106,7 +106,6 @@ esp_err_t init_camera()
     else {
         return ESP_OK;
     }
-
 }
 
 

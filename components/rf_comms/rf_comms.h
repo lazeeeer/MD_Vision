@@ -1,5 +1,7 @@
 // testing calling cpp fucntion from c files
 
+#include "esp_err.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -7,7 +9,7 @@ extern "C" {
     int testFunc(void);
 
     // making these functions callable from .c files
-    void init_radio(void);
+    esp_err_t init_radio(void);
     int get_numMessages();
     int get_message( uint8_t* byteBuffer, size_t bufferLen );
 

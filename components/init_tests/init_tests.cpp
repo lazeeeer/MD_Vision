@@ -40,38 +40,34 @@ extern "C" {
 #endif
 
 
-// main function for calling series of tests/checks
-void init_checks(void)
+// run the init code for all hardware, returns a ESP_OK if all successful
+esp_err_t init_devices()
 {
+    // checking display init
+    if ( init_display() != ESP_OK )
+    {
+        return ESP_FAIL;
+    }
+    // checking radio init
+    if ( init_radio() != ESP_OK )
+    {
+        return ESP_FAIL;
+    }
+    // checking camera init
+    if ( init_camera() != ESP_OK )
+    {
+        return ESP_FAIL;
+    }
+    // checking wifi init
+    if ( init_wifi_comms() != ESP_OK )
+    {
+        return ESP_FAIL;
+    }
 
+    return ESP_OK;
 }
 
 
-// ---- INIT functions for different components of the device ----
-
-void init_display_device(void)
-{
-    // initing the display and making it enter default state and HUD
-    init_display();
-    clear_disp();
-    display_main_hud();
-}
-
-void init_wifi_device(void)
-{
-    // this will init wifi drivers AND attempt to CONNECT to a wifi station, not make a request
-    // making HTTP connections is a different function call
-    // CHECK AND HANDLE CONNECTION FAILED?????
-    init_wifi_comms();
-}
-
-void init_pager_device()
-{
-    // turn the radio on and set it into a LISTENING PAGER MODE
-    init_radio();
-}
-
-// ---- POST tests for checking hardware ----
 
 
 
