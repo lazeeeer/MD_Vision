@@ -81,6 +81,7 @@ esp_err_t init_display()
 
     // setting the main HUD after initialization;
     display_main_hud();
+    display_clear_msg_text();
     
     return ESP_OK;
 }
@@ -182,6 +183,11 @@ void test_pixels()
 // TODO: HAVE FUNCTION HANDLE THE MSG_PACKAGE ISNTEAD TO GET THE MSG FLAG AS WELL
 void write_to_disp(const char* str)
 {
+    if (str == NULL){
+        printf("string given was null...\n");
+        return;
+    }
+
     u8g2_SetFont(&mainDisp, u8g2_font_5x8_tr);
     u8g2_SetDrawColor(&mainDisp, 1);
 
@@ -198,13 +204,14 @@ void write_to_disp(const char* str)
         for (int i=0; i < splitLines; i++)
         {
             char *substring = (char*)malloc( (line_char_len+1) * sizeof(char) );
+            if (substring == NULL) {printf("malloc failed here...\n"); return;}
             strncpy(substring, &str[i * line_char_len], line_char_len);
             substring[line_char_len] = '\0';
 
             printf("%s\n", substring);
 
             u8g2_DrawStr(&mainDisp, 14, (i*10) + 20 , substring);
-
+            free(substring);
         }
         // sending buffer after addding al lines to it
         u8g2_SendBuffer(&mainDisp);
@@ -283,10 +290,3 @@ void displayLoop(void *params)
     }
 
 }
-
-
-
-
-
-
-

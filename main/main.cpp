@@ -158,7 +158,7 @@ void queue_to_disp(void *param)
 
             //clear and write to disp
             //clear_disp();
-            write_to_disp(msg);
+            write_to_disp( msg );
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             display_clear_msg_text();
 
@@ -170,37 +170,45 @@ void queue_to_disp(void *param)
 
 
 
+
 // KEEP THIS CODE - WORKING EXAMPLE OF GETTING RF COMMS WORKING
 void receive_transmission(void *param)
 {
-    uint8_t buffer[64];
+    uint8_t buffer[50];
     size_t length = sizeof(buffer);
     int state;
     const int digitalDataIn = 12;
     uint32_t myAddress = 12345;
+    int num;
 
-    // // turning on radio and setting parameters
-    // state = radio.begin();
-    // if (state == RADIOLIB_ERR_NONE) {
-    //     printf("radio started just fine!\n");
-    // }
-    // state = pager.begin(434.0, 1200, false, 4500);
-    // if (state == RADIOLIB_ERR_NONE)
-    // {
-    //     printf("radio started just fine!\n");
-    // }
-
-    // state = pager.startReceive(digitalDataIn, myAddress, 12345);
-
-    // // error check to see if we turned on fine
-    // if (state == RADIOLIB_ERR_NONE)
-    // {
-    //     printf("radio started just fine!\n");
-    // }
-
-    // task main loop...
     for (;;)
-    {
+    {       
+        num = get_numMessages();
+
+        // checking if a message is available
+        if ( num > 2 )
+        {
+            printf("MESSAGE AVAILABLE:%d\n", num);
+            // trying to read a message:
+            if ( get_message(buffer, length) == 0) 
+            {
+                //printf("message received was: %s\n", buffer);
+                write_to_disp( (char*)buffer );
+
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                display_clear_msg_text();
+                memset(buffer, 0, sizeof(buffer));
+            }
+            else {
+                printf("something failed in the else?\n");
+            }
+        }
+        else {
+            printf("no message received yet...\n");
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+
         // checking the interrupt pin
         //printf("poll loop ran once...\n");
 
@@ -217,7 +225,6 @@ void receive_transmission(void *param)
         //     printf("messages were received?? - message is: %s\n", byteBuff);
         // }
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -261,15 +268,16 @@ extern "C" void app_main(void)
 
     // ==== UART TESTING STUFF ======================== //
 
+    if (init_radio() != ESP_OK)
+    {
+        printf("Something went wrong in the init function...\n");
+    }
 
-    // init and test the display
+    //init and test the display
     init_display();
-    clear_disp();
-    display_main_hud();
-
 
     // --- CREATING TASKS --- //
-    xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
+    //xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
     xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
     xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
     //xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);

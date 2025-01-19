@@ -35,7 +35,7 @@ extern "C" int testFunc(void)
 esp_err_t init_radio(void)
 {
     int state;   // variable for checking state of the RadioLib calls
-    const int digitalDataIn = 12;
+    const int digitalDataIn = 32;
     uint32_t myAddress = 12345;
 
     // turning on radio
@@ -89,7 +89,7 @@ int get_numMessages()
 
 
 // function to read a message and return len of packet
-int get_message( uint8_t* byteBuffer, size_t bufferLen )
+int get_message(uint8_t* byteBuffer, size_t bufferLen )
 {
     size_t len;                 // len of packet received -> for error checking
     uint32_t rec_address;       // address that sent the packet
@@ -99,7 +99,7 @@ int get_message( uint8_t* byteBuffer, size_t bufferLen )
 
     if (state != RADIOLIB_ERR_NONE)
     {
-        printf("could not read a message for some reason...\n");
+        printf("could not read a message for some reason... : %d\n", state);
         return state;   // returning RadioLib error code for debug
     }
     else {
