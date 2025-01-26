@@ -10,6 +10,8 @@
 #include "esp_http_client.h"
 #include "esp_netif.h"
 
+#include "esp_camera.h"
+
 // C http libraries
 #include "nvs_flash.h"
 #include "lwip/err.h"
@@ -329,26 +331,61 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-void test_http_request() {
-    esp_http_client_config_t config = {
-        .url = "http://172.20.10.3:5000/ping", // Replace with your Flask server's IP address
-        .event_handler = _http_event_handler,
-    };
+// void test_http_request() {
+//     esp_http_client_config_t config = {
+//         .url = "http://172.20.10.3:5000/ping", // Replace with your Flask server's IP address
+//         .event_handler = _http_event_handler,
+//     };
 
+//     esp_http_client_handle_t client = esp_http_client_init(&config);
+
+//     // Perform HTTP GET request
+//     esp_err_t err = esp_http_client_perform(client);
+
+//     if (err == ESP_OK) {
+//         printf("HTTP GET Status = %d, content_length = %lld", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
+//     } else {
+//         printf("HTTP GET request failed: %s", esp_err_to_name(err));
+//     }
+
+//     // Clean up
+//     esp_http_client_cleanup(client);
+// }
+
+
+
+esp_err_t send_image_to_server( camera_fb_t *fb )
+{
+    esp_http_client_config_t config = {
+        .url = "http://172.20.10.3:5000/upload_image", // Flash server URL for image upload
+        .method = HTTP_METHOD_POST,
+    };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
-    // Perform HTTP GET request
-    esp_err_t err = esp_http_client_perform(client);
+    // filling header information for client request
+    esp_http_client_set_header(client, "Content-Type", "image/jpeg");
+    esp_http_client_set_post_field( client, (const char*)fb->buf, fb->len );
 
-    if (err == ESP_OK) {
-        printf("HTTP GET Status = %d, content_length = %lld", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
-    } else {
-        printf("HTTP GET request failed: %s", esp_err_to_name(err));
+    esp_err_t err = esp_http_client_perform(client);    // sending the image
+
+    // checking client resposne
+    if ( err == ESP_OK )
+    {
+        int status_code = esp_http_client_get_status_code(client);
+        printf("returned status code: %d\n", status_code);
+    }
+    else {
+        printf("HTTP POST failed...\n");
     }
 
-    // Clean up
+    // clean up before returning
     esp_http_client_cleanup(client);
+    return err;
 }
+
+
+
+
 
 
 // TODO: STEVEN MAKE THIS 
