@@ -231,35 +231,6 @@ void receive_transmission(void *param)
 
 
 
-
-void calibrate(void)
-{
-
-    printf("calibrating\n");
-
-}   
-
-void readSensor( void *param )
-{
-    while(1)
-    {
-        printf("reading sensor 1\n");
-    }
-    vTaskDelay(5000/portTICK_PERIOD_MS);
-}
-
-void readSensor2( void *param )
-{
-    while(1)
-    {
-        printf("reading sensor 2\n");
-    }
-    vTaskDelay(5000/portTICK_PERIOD_MS);
-}
-
-
-
-
 /*
     ***NOTE
     THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
@@ -267,101 +238,49 @@ void readSensor2( void *param )
 */
 extern "C" void app_main(void)
 {
-    // // calling function to init all variables from the sync_objects.h file`
-    // esp_err_t initCheck = init_globals();
-    // if ( initCheck != ESP_OK )
-    // {
-    //     printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
-    //     abort();
-    // }
-
-
-    calibrate();
-
-
-
+    // calling function to init all variables from the sync_objects.h file`
+    esp_err_t initCheck = init_globals();
+    if ( initCheck != ESP_OK )
+    {
+        printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
+        abort();
+    }
 
 
     // ==== UART TESTING STUFF ======================== //
 
-    // // Configuration structure for UART parameters
-    // uart_config_t uart_config = {
-    //     .baud_rate = UART_BAUD_RATE,
-    //     .data_bits = UART_DATA_8_BITS,
-    //     .parity    = UART_PARITY_DISABLE,
-    //     .stop_bits = UART_STOP_BITS_1,
-    //     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    // };
+    // Configuration structure for UART parameters
+    uart_config_t uart_config = {
+        .baud_rate = UART_BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
 
-    // // Install UART driver using an event queue here
-    // uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-    // uart_param_config(UART_PORT_NUM, &uart_config);
-    // uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    // Install UART driver using an event queue here
+    uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+    uart_param_config(UART_PORT_NUM, &uart_config);
+    uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    // //creating a queue to pass information around
-    // q = xQueueCreate(10, MSG_CHAR_LEN);
+    //creating a queue to pass information around
+    q = xQueueCreate(10, MSG_CHAR_LEN);
 
     // ==== UART TESTING STUFF ======================== //
 
-
-
-    // if ( init_wifi_comms() == ESP_OK ) 
-    // {
-    //     printf("Wifi started just fine!\n");
-    // }
-
-    // // running the camera stuff
-    // if ( init_camera() == ESP_OK)
-    // {
-    //     printf("camera started...\n");
-    // }
-    // else {
-    //     printf("camera couldnt start...");
-    //     abort();
-    // }
-
-
-    // if ( get_fb() == NULL )
-    // {
-    //     printf("frame buffer is empty\n");
-    // }
-
-    // vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // if ( take_picture() == ESP_OK)
-    // {
-    //     printf("picture taken!");
-    // }
-
-    // if ( get_fb() == NULL )
-    // {
-    //     printf("frame buffer still empty???\n");
-    // }
-    // else {
-    //     printf("frame buffer not empty anymore!");
-    // }
-
-    // printf("sending to server...\n");
-    // esp_err_t ret = send_image_to_server( get_fb() );
-
-
-    // if (init_radio() != ESP_OK)
-    // {
-    //     printf("Something went wrong in the init function...\n");
-    // }
+    if (init_radio() != ESP_OK)
+    {
+        printf("Something went wrong in the init function...\n");
+    }
 
     //init and test the display
-    // init_display();
+    init_display();
 
     // --- CREATING TASKS --- //
-    // xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
-    // xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
-    // xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
-    // xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
+    //xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
+    xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
+    xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
+    //xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
 
-    xTaskCreate(readSensor, "read sensor 1", 1024, NULL, 1, NULL);
-    xTaskCreate(readSensor2, "read sensor 2", 1024, NULL, 1, NULL);
-
-
-    // end of main...`
+    // end of main...
 }
