@@ -12,6 +12,8 @@
 
 #include "esp_camera.h"
 
+#include "cJSON.h"
+
 // C http libraries
 #include "nvs_flash.h"
 #include "lwip/err.h"
@@ -51,6 +53,15 @@ static int s_retry_num = 0;                     //retry tracker
 #define MAX_HTTP_OUTPUT_BUFFER 128
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
+
+
+// JSON Example to test pasring HTTP response info
+const char *json_string = "{"
+    "\"patient_name\": \"John Doe\","
+    "\"check_in_date\": \"2025-01-01\","
+    "\"last_check_in_time\": \"14:30:00\","
+    "\"current_doctor\": \"Dr. Smith\""
+"}";
 
 
 // ==== WiFi Connection Functions (Not for data processing) ======================= //
@@ -250,31 +261,43 @@ esp_err_t init_wifi_comms()
 // }
 
 
-// simple function for parsing over the JSON received from the HTTP client request
-void parse_json(const char *json_str) {
-    jsmn_parser parser;
-    jsmntok_t tokens[32];  // Increase this if your JSON is large
 
-
-    jsmn_init(&parser);
-    int token_count = jsmn_parse(&parser, json_str, strlen(json_str), tokens, 32);
-
-    if (token_count < 0) {
-        printf("Failed to parse JSON: %d\n", token_count);
-        return;
+// function to parse the JSON string we would get from the HTTP response
+void parse_json( const char * jsonString)
+{
+    // passinng the json to the parser and checking for any issues
+    cJSON *root = cJSON_Parse(jsonString);
+    if (!root)
+    {
+        printf("Error before: %s\n", cJSON_GetErrorPtr());
+    }
+    
+    // extracting a "device field"
+    cJSON *name = cJSON_GetObjectItem(root, "patient_name");
+    if ( cJSON_IsString(name) ) {
+        printf("name is: %s\n", name->valuestring);
     }
 
-    printf("Parsed JSON with %d tokens\n", token_count);
-
-    // Example: Extracting a key-value pair
-    for (int i = 0; i < token_count; i++) {
-        if (tokens[i].type == JSMN_STRING && 
-            strncmp(json_str + tokens[i].start, "message", tokens[i].end - tokens[i].start) == 0) {
-
-            jsmntok_t *value = &tokens[i + 1];
-            printf("Found key 'message': %.*s\n", value->end - value->start, json_str + value->start);
-        }
+    // extracting a "device field"
+    cJSON *date = cJSON_GetObjectItem(root, "check_in_date");
+    if ( cJSON_IsString(date) ) {
+        printf("date is: %s\n", date->valuestring);
     }
+
+    // extracting a "device field"
+    cJSON *checkIn = cJSON_GetObjectItem(root, "last_check_in_time");
+    if ( cJSON_IsString(checkIn) ) {
+        printf("checkIn is: %s\n", checkIn->valuestring);
+    }
+
+    // extracting a "device field"
+    cJSON *doctor = cJSON_GetObjectItem(root, "current_doctor");
+    if ( cJSON_IsString(doctor) ) {
+        printf("doctor is: %s\n", doctor->valuestring);
+    }
+
+    // clearning the cJSON root used to parse before completing
+    cJSON_Delete(root);
 }
 
 

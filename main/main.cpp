@@ -24,6 +24,10 @@ extern "C" {
     // including component containing init and POST code
 
 
+
+    #include "cJSON.h"
+
+
     // including camera and sd libraries
     #include "esp_camera.h"
     #include "camera.h"
@@ -231,6 +235,8 @@ void receive_transmission(void *param)
 
 
 
+
+
 /*
     ***NOTE
     THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
@@ -245,6 +251,8 @@ extern "C" void app_main(void)
         printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
         abort();
     }
+
+
 
 
     // ==== UART TESTING STUFF ======================== //
@@ -268,19 +276,79 @@ extern "C" void app_main(void)
 
     // ==== UART TESTING STUFF ======================== //
 
-    if (init_radio() != ESP_OK)
-    {
-        printf("Something went wrong in the init function...\n");
-    }
+
+
+    // if ( init_wifi_comms() == ESP_OK ) 
+    // {
+    //     printf("Wifi started just fine!\n");
+    // }
+
+    // // running the camera stuff
+    // if ( init_camera() == ESP_OK)
+    // {
+    //     printf("camera started...\n");
+    // }
+    // else {
+    //     printf("camera couldnt start...");
+    //     abort();
+    // }
+
+
+    // if ( get_fb() == NULL )
+    // {
+    //     printf("frame buffer is empty\n");
+    // }
+
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // if ( take_picture() == ESP_OK)
+    // {
+    //     printf("picture taken!");
+    // }
+
+    // if ( get_fb() == NULL )
+    // {
+    //     printf("frame buffer still empty???\n");
+    // }
+    // else {
+    //     printf("frame buffer not empty anymore!");
+    // }
+
+    // // printf("sending to server...\n");
+    // esp_err_t ret = send_image_to_server( get_fb() );
+
+
+    // if (init_radio() != ESP_OK)
+    // {
+    //     printf("Something went wrong in the init function...\n");
+    // }
 
     //init and test the display
-    init_display();
+    //init_display();
+
+
+    // testing JSON frame
+    const char *json_string = "{"
+        "\"patient_name\": \"john doe\","
+        "\"check_in_date\": \"2025-01-01\","
+        "\"last_check_in_time\": \"14:30:00\","
+        "\"current_doctor\": \"dr. smith\""
+    "}";
+
+    printf("\n\n");
+
+    // testing the parse JSON function
+    printf("TESTING JSON PARSE FUNCTION:\n\n");
+    parse_json(json_string);
+
 
     // --- CREATING TASKS --- //
-    //xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
-    xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
-    xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
+    xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
+    //xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
+    //xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
     //xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
 
-    // end of main...
+
+
+    // end of main...`
 }
