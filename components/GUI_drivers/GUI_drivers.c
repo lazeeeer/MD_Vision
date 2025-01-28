@@ -51,6 +51,8 @@ QueueHandle_t displayQueue;
 static float capacity;
 
 
+
+
 // ==== List of main wrapper functions editing display ========== //
 
 // TODO: TEST THE INTI WITH NEW PIN DEFINES

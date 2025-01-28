@@ -29,9 +29,9 @@ typedef enum {
 
 typedef struct 
 {
-
     display_msg_type_t msg_flag;    // flag describing type of message
-    char message[64];               // raw message
+    char message[256];               // raw message
+    size_t msgSize;
 
 }display_msg_package_t;
 

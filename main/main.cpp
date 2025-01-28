@@ -24,7 +24,6 @@ extern "C" {
     // including component containing init and POST code
 
 
-
     #include "cJSON.h"
 
 
@@ -173,16 +172,14 @@ void queue_to_disp(void *param)
 }
 
 
-
-
 // KEEP THIS CODE - WORKING EXAMPLE OF GETTING RF COMMS WORKING
-void receive_transmission(void *param)
+void testing_transmission(void *param)
 {
-    uint8_t buffer[50];
+    uint8_t buffer[256];
     size_t length = sizeof(buffer);
-    int state;
-    const int digitalDataIn = 12;
-    uint32_t myAddress = 12345;
+    // int state;
+    // const int digitalDataIn = 12;
+    // uint32_t myAddress = 12345;
     int num;
 
     for (;;)
@@ -190,12 +187,15 @@ void receive_transmission(void *param)
         num = get_numMessages();
 
         // checking if a message is available
-        if ( num > 2 )
+        if ( num > 0 )
         {
             printf("MESSAGE AVAILABLE:%d\n", num);
+
             // trying to read a message:
             if ( get_message(buffer, length) == 0) 
-            {
+            {   
+                //printf("%s\n", buffer);
+
                 //printf("message received was: %s\n", buffer);
                 write_to_disp( (char*)buffer );
 
@@ -208,32 +208,13 @@ void receive_transmission(void *param)
             }
         }
         else {
+            printf("MESSAGE AVAILABLE:%d\n", num);
             printf("no message received yet...\n");
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
 
-
-        // checking the interrupt pin
-        //printf("poll loop ran once...\n");
-
-        // //size_t packets = pager.available();
-        // if (packets > 0)
-        // {
-        //     std::cout << "there are this many packets: " << packets << std::endl;
-
-        //     uint8_t byteBuff[128];
-        //     size_t len = 0;
-        //     uint32_t rec_addr;
-
-        //     //state = pager.readData(byteBuff, &len, &rec_addr);
-        //     printf("messages were received?? - message is: %s\n", byteBuff);
-        // }
-
     }
 }
-
-
-
 
 
 
