@@ -1,5 +1,4 @@
 // c++ includes
-
 #include <iostream>
 #include <RadioLib.h>
 
@@ -54,6 +53,16 @@ extern "C" {
 #endif
 
 
+QueueHandle_t q;
+#define MSG_CHAR_LEN 128
+
+
+
+// ==== Macros for enabling / disabling certain parts of the code
+
+#define ENABLE_WIFI (1)
+//#define ENABLE_UART (1)
+
 
 
 // ==== Definitions needed for main program ==== //
@@ -63,7 +72,21 @@ SemaphoreHandle_t   xMsgBufferSemphr = NULL;
 QueueHandle_t       xMsgBufferQueue = NULL; 
 
 
-// local variables for main...
+// ==== UART definitions ============== //
+
+#define UART_PORT_NUM UART_NUM_0
+#define UART_BAUD_RATE 115200
+#define UART_RX_BUF_SIZE 1024
+
+// Configuration structure for UART parameters
+uart_config_t uart_config = {
+    .baud_rate = UART_BAUD_RATE,
+    .data_bits = UART_DATA_8_BITS,
+    .parity    = UART_PARITY_DISABLE,
+    .stop_bits = UART_STOP_BITS_1,
+    .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+};
+
 
 
 
@@ -87,25 +110,11 @@ esp_err_t init_sync_objects(void)
         return ESP_FAIL;
     }
 
-
     return ESP_OK;
-    // end of functino...
 }
 
 
-
-
-// ==== testing stuff ======================
-
-#define UART_PORT_NUM UART_NUM_0
-#define UART_BAUD_RATE 115200
-#define UART_RX_BUF_SIZE 1024
-
-QueueHandle_t q;
-
-#define MSG_CHAR_LEN 128
-
-
+#ifdef ENABLE_UART
 // task to listen for input in UART buffer
 void UART_input(void *param)
 {
@@ -181,51 +190,8 @@ void queue_to_disp(void *param)
     }
     // end of task...
 }
+#endif
 
-
-// KEEP THIS CODE - WORKING EXAMPLE OF GETTING RF COMMS WORKING
-void testing_transmission(void *param)
-{
-    uint8_t buffer[256];
-    size_t length = sizeof(buffer);
-    // int state;
-    // const int digitalDataIn = 12;
-    // uint32_t myAddress = 12345;
-    int num;
-
-    for (;;)
-    {       
-        num = get_numMessages();
-
-        // checking if a message is available
-        if ( num > 0 )
-        {
-            printf("MESSAGE AVAILABLE:%d\n", num);
-
-            // trying to read a message:
-            if ( get_message(buffer, length) == 0) 
-            {   
-                //printf("%s\n", buffer);
-
-                //printf("message received was: %s\n", buffer);
-                write_to_disp( (char*)buffer );
-
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
-                display_clear_msg_text();
-                memset(buffer, 0, sizeof(buffer));
-            }
-            else {
-                printf("something failed in the else?\n");
-            }
-        }
-        else {
-            printf("MESSAGE AVAILABLE:%d\n", num);
-            printf("no message received yet...\n");
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-    }
-}
 
 
 
@@ -236,6 +202,7 @@ void testing_transmission(void *param)
 */
 extern "C" void app_main(void)
 {
+
     // calling function to init all variables from the sync_objects.h file`
     esp_err_t initCheck = init_sync_objects();
     if ( initCheck != ESP_OK )
@@ -245,19 +212,6 @@ extern "C" void app_main(void)
     }
 
 
-
-
-    // ==== UART TESTING STUFF ======================== //
-
-    // Configuration structure for UART parameters
-    uart_config_t uart_config = {
-        .baud_rate = UART_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    };
-
     // Install UART driver using an event queue here
     uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
     uart_param_config(UART_PORT_NUM, &uart_config);
@@ -265,8 +219,6 @@ extern "C" void app_main(void)
 
     //creating a queue to pass information around
     q = xQueueCreate(10, MSG_CHAR_LEN);
-
-    // ==== UART TESTING STUFF ======================== //
 
 
 
