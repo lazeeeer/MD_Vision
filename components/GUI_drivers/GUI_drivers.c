@@ -1,15 +1,16 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "GUI_drivers.h"
 
 // including the FreeRTOS task libraries
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/adc.h"
 
-// including radio drivers to get number of messages available
+// including custom driver code
 #include "rf_comms.h"
+#include "GUI_drivers.h"
+#include "sync_objects.h"
 
 //including the u8g2 and u8g2_hal libs
 #include "u8g2.h"
@@ -29,6 +30,8 @@
 #define DEBOUNCE_DELAY  50  // delay in ms for debouncing check
 
 #define RADIOLIB_ERR_NONE 0 // define used to know if we got error from radio functions
+
+#define MSG_CHAR_LEN 256
 
 // Defines for battery capacity meaurment circuits
 #define ADC_CHANNEL ADC1_CHANNEL_6      // associated with pin 34 on the board
@@ -233,7 +236,8 @@ void write_to_disp(const char* str)
 // Main display control loop to run in the task
 void displayLoop(void *params)
 {
-    char message[64];    // buffer to take in the packets from RF module
+    char message[MSG_CHAR_LEN];    // buffer to take in the packets from RF module
+    bool buttonReleased = true;
 
    static int processState = 0; 
     /* display loop state machine
@@ -250,46 +254,44 @@ void displayLoop(void *params)
     gpio_config(&io_conf);
 
     // main event loop
-    while (true)
+    for(;;)
     {
         display_update_notif();     // check and update notif
         display_update_battery();   // check and update battery
 
+        // updating button flag at each display poll
+        if ( gpio_get_level(DISP_BUTTON) == 1 ) {
+            buttonReleased = true;
+        }
+
         if (processState == 0)     // idle - waiting for message_available && button_press
         {
-            // Check pressed button AND messages avaialable
+            // Check if button is pressed AND messages avaialable in queue
             // NOTE: button press is debounced in hardware with RC circuit
-            if ( (gpio_get_level(DISP_BUTTON) == 0) && (get_numMessages() > 0))
+            if ( (buttonReleased) && (gpio_get_level(DISP_BUTTON) == 0) && ( uxQueueMessagesWaiting(xMsgBufferQueue) > 0) )
             {
-                printf("REACHED DEBOUNCE PASS AND MESSAGES IN QUEUE...\n");
+                // write the message to the display then clean the buffer after
+                write_to_disp( (char*)message );
+                memset(message, 0, sizeof(message));
 
-                if ( get_message(&message, sizeof(message)) == RADIOLIB_ERR_NONE )
-                {
-                    // successfully filled message buffer
-                    write_to_disp(message);
-                }
-                // changing to next state that waits to clear message
-                processState = 1;
+                processState = 1;   //change to next state
+                buttonReleased = false;
             }
             // end of state...
         }
         else if (processState == 1)    // displaying message, waiting for next button input
         {
-            // checking same button state 
-            if ( gpio_get_level(DISP_BUTTON) == 0 )
+            // checking same button state and button 
+            if ( (buttonReleased) && (gpio_get_level(DISP_BUTTON) == 0) )
             {
                 display_clear_msg_text();
-
-                // handling when the button is held-down
-                if ( gpio_get_level(DISP_BUTTON) == 1)
-                {
-                    processState = 0;   // switching state back to idle
-                }
+                processState = 0;   // switching state back to idle
+                buttonReleased = false;
             }
         }
 
         // yield to scheduler for a bit between checks
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
 }

@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
     #include "GUI_drivers.h"
+    #include "sync_objects.h"
 
 #ifdef __cplusplus
 }
@@ -27,6 +28,7 @@ using namespace std;
 #define SPI_CS_PIN    5  // this is for RF only
 #define RFM_RESET_PIN 4  // this is for RF only
 
+#define MSG_CHAR_LEN 256
 
 // ==== Static items for controlling display ========== //
 static EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
@@ -130,10 +132,54 @@ int get_message(uint8_t* byteBuffer, size_t bufferLen )
 }
 
 
-// main task look that checks if there is a tranmission available
+
+// main task for polling the RF module for data and passing it to the msg queue
+void poll_radio(void *param)
+{
+    uint8_t buffer[MSG_CHAR_LEN];
+    size_t length = sizeof(buffer);
+
+    for (;;)    // main task loop
+    {  
+        int num = get_numMessages();
+
+        if ( num > 0)   // message available in buffer
+        {
+            // getting data from the RadioLib software buffer
+            if ( get_message(buffer, length) == RADIOLIB_ERR_NONE)
+            {
+
+                printf("message received: %s\n", buffer);   // debug prints:
+
+                // add to the msg queue
+                if ( xQueueSend(xMsgBufferQueue, buffer, pdMS_TO_TICKS(100)) != pdPASS )
+                {
+                    printf("Could not add msg to the queue for some reason...\n");
+                }
+
+                // clear buffer to ensure no leftover data
+                memset(buffer, 0, sizeof(buffer));
+            }
+            else {
+                printf("could not read message for some reason...\n");
+            }
+        }
+        else {
+            printf("No message received yet...\n");
+        }
+
+        // this task will yeild for 1 second 
+        // shouldnt matter how long due to hardware asynch behaviour
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+
+
+// TESTING TASK TO DEBUG GETTING PAGER TRANMISSIONS
 void receive_transmission(void *param)
 {
-    uint8_t buffer[256];
+    uint8_t buffer[MSG_CHAR_LEN];
     size_t length = sizeof(buffer);
     // int state;
     // const int digitalDataIn = 12;

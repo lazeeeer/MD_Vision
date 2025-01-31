@@ -13,8 +13,8 @@ extern "C" {
     int get_numMessages();
     int get_message( uint8_t* byteBuffer, size_t bufferLen );
 
-    // main task loop function
-    void receive_transmission(void *param);
+    void receive_transmission(void *param);     // debug task
+    void poll_radio(void *param);               // main msg poll task
 
 #ifdef __cplusplus
 }

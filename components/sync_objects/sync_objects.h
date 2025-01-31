@@ -8,9 +8,11 @@
 
 
 // --- declaring all the globals needed for control below... --- //
-extern SemaphoreHandle_t xMsgBufferSemphr;
+extern SemaphoreHandle_t    xMsgBufferSemphr;
+extern QueueHandle_t        xMsgBufferQueue;
 
-//size_t MAX_MESSAGE_LEN = 128;
+
+
 
 #endif // SYNC_OBJECTS_H
 

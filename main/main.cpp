@@ -59,7 +59,9 @@ extern "C" {
 // ==== Definitions needed for main program ==== //
 
 // global control objects...
-SemaphoreHandle_t xMsgBufferSemphr = NULL;
+SemaphoreHandle_t   xMsgBufferSemphr = NULL;
+QueueHandle_t       xMsgBufferQueue = NULL; 
+
 
 // local variables for main...
 
@@ -67,7 +69,7 @@ SemaphoreHandle_t xMsgBufferSemphr = NULL;
 
 // ==== Functions for main loop ================ //
 
-esp_err_t init_globals(void)
+esp_err_t init_sync_objects(void)
 {
     // init the msg buffer semaphore
     xMsgBufferSemphr = xSemaphoreCreateBinary();
@@ -76,6 +78,15 @@ esp_err_t init_globals(void)
         printf("Message buffer semaphore could not be created...\n ");
         return ESP_FAIL;
     }
+
+    // init the msg buffer queue
+    xMsgBufferQueue = xQueueCreate( 10, sizeof( char ) * 256 );
+    if ( xMsgBufferQueue == NULL)
+    {
+        printf("Message buffer queue could not be created...\n ");
+        return ESP_FAIL;
+    }
+
 
     return ESP_OK;
     // end of functino...
@@ -226,7 +237,7 @@ void testing_transmission(void *param)
 extern "C" void app_main(void)
 {
     // calling function to init all variables from the sync_objects.h file`
-    esp_err_t initCheck = init_globals();
+    esp_err_t initCheck = init_sync_objects();
     if ( initCheck != ESP_OK )
     {
         printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
