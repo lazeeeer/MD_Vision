@@ -26,7 +26,7 @@
 #define PIN_NUM_DC      21
 #define PIN_NUM_BCKL    5
 
-#define DISP_BUTTON     2   // GPIO display button is connected to
+#define DISP_BUTTON     32   // GPIO display button is connected to
 #define DEBOUNCE_DELAY  50  // delay in ms for debouncing check
 
 #define RADIOLIB_ERR_NONE 0 // define used to know if we got error from radio functions

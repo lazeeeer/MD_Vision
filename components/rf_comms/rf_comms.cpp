@@ -22,13 +22,16 @@ extern "C" {
 using namespace std;
 
 // Defines of pins needed for RadioLib SPI interface
-#define SPI_MOSI_PIN 23
-#define SPI_MISO_PIN 19
-#define SPI_SCK_PIN  18
-#define SPI_CS_PIN    5  // this is for RF only
-#define RFM_RESET_PIN 4  // this is for RF only
+#define SPI_MOSI_PIN    23
+#define SPI_MISO_PIN    19
+#define SPI_SCK_PIN     18
+#define SPI_CS_PIN      5  // this is for RF only
+#define RFM_RESET_PIN   4  // this is for RF only
 
-#define MSG_CHAR_LEN 256
+#define DIO0_PIN        26 
+#define DIO1_PIN        14  // might not be needed
+#define DIO2_PIN        13  // IMPORTANT -> should pass data from module to RadioLib
+
 
 // ==== Static items for controlling display ========== //
 static EspHal* hal = new EspHal(SPI_SCK_PIN, SPI_MISO_PIN, SPI_MOSI_PIN);
@@ -49,7 +52,6 @@ extern "C" int testFunc(void)
 esp_err_t init_radio(void)
 {
     int state;   // variable for checking state of the RadioLib calls
-    const int digitalDataIn = 32;
     uint32_t myAddress = 12345;
 
     Module *myModule = radio.getMod();
@@ -76,7 +78,7 @@ esp_err_t init_radio(void)
     }
 
     // putting the pager into RECEIVE mode
-    state = pager.startReceive(digitalDataIn, myAddress);
+    state = pager.startReceive(DIO2_PIN, myAddress, 12345);
     if (state == RADIOLIB_ERR_NONE)
     {
         printf("radio started just fine!\n");

@@ -46,6 +46,10 @@
 #define MAX_FAILURES        10     // Max failed connection attemps before tossing FAIL status
 
 
+// define for button assignment and variables
+#define WIFI_BUTTON         33
+
+
 // Global Variables //
 static const char *TAG = "WIFI_COMMS";
 static EventGroupHandle_t wifi_event_group;     // group bits to contain status bits for wifi connection
