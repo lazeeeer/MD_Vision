@@ -1,3 +1,4 @@
+#define ESP32 (0)
 
 // generic c includes
 #include <stdio.h>
@@ -16,25 +17,28 @@
 
 // ==== Defines For Camera ================================
 
-#define CAM_BUTTON   14 
+#define CAM_BUTTON   33
 
-// specifically for esp32-wrover
-#define CAM_PIN_PWDN    -1  //power down is not used
-#define CAM_PIN_RESET   -1 //software reset will be performed
-#define CAM_PIN_XCLK    21
-#define CAM_PIN_SIOD    26
-#define CAM_PIN_SIOC    27
-#define CAM_PIN_D7      35
-#define CAM_PIN_D6      34
-#define CAM_PIN_D5      39
-#define CAM_PIN_D4      36
-#define CAM_PIN_D3      19
-#define CAM_PIN_D2      18
-#define CAM_PIN_D1      5
-#define CAM_PIN_D0      4
-#define CAM_PIN_VSYNC   25
-#define CAM_PIN_HREF    23
-#define CAM_PIN_PCLK    22
+// defines for esp32s3 specifically
+#define PWDN_GPIO_NUM    -1
+#define RESET_GPIO_NUM   -1
+#define XCLK_GPIO_NUM    15
+#define SIOD_GPIO_NUM    4
+#define SIOC_GPIO_NUM    5
+#define VSYNC_GPIO_NUM   6
+#define HREF_GPIO_NUM    7
+#define PCLK_GPIO_NUM    13
+
+#define Y9_GPIO_NUM      16
+#define Y8_GPIO_NUM      17
+#define Y7_GPIO_NUM      18
+#define Y6_GPIO_NUM      12
+#define Y5_GPIO_NUM      10
+#define Y4_GPIO_NUM      8
+#define Y3_GPIO_NUM      9
+#define Y2_GPIO_NUM      11
+
+
 
 
 // ==== Defined Variables and Structures =================
@@ -45,6 +49,44 @@ static camera_fb_t *pic;
 // pre-defined settings for our camera
 static camera_config_t camera_config = {
 
+    .ledc_channel = LEDC_CHANNEL_0,
+    .ledc_timer = LEDC_TIMER_0,
+
+    .pin_d0 = Y2_GPIO_NUM,
+    .pin_d1 = Y3_GPIO_NUM,
+    .pin_d2 = Y4_GPIO_NUM,
+    .pin_d3 = Y5_GPIO_NUM,
+    .pin_d4 = Y6_GPIO_NUM,
+    .pin_d5 = Y7_GPIO_NUM,
+    .pin_d6 = Y8_GPIO_NUM,
+    .pin_d7 = Y9_GPIO_NUM,
+
+    .pin_xclk = XCLK_GPIO_NUM,
+    .pin_pclk = PCLK_GPIO_NUM,
+    .pin_vsync = VSYNC_GPIO_NUM,
+    .pin_href = HREF_GPIO_NUM,
+    .pin_sscb_sda = SIOD_GPIO_NUM,
+    .pin_sscb_scl = SIOC_GPIO_NUM,
+    .pin_pwdn = PWDN_GPIO_NUM,
+    .pin_reset = RESET_GPIO_NUM,
+
+    // Use 10MHz XCLK for better performance
+    .xclk_freq_hz = 2 * 1000 * 1000,
+
+    // Always use JPEG for performance & memory efficiency
+    .pixel_format = PIXFORMAT_JPEG,
+    .frame_size = FRAMESIZE_SVGA,   // 800x600 resolution
+
+    // JPEG settings
+    .jpeg_quality = 10, // Lower value = better quality
+    .fb_count = 2,      // Double buffering for continuous capture
+
+    // Store frame buffer in PSRAM
+    //.fb_location = CAMERA_FB_IN_PSRAM,
+    .fb_location = CAMERA_FB_IN_DRAM,
+    .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+
+#if ESP32
     .pin_pwdn = CAM_PIN_PWDN,
     .pin_reset = CAM_PIN_RESET,
     .pin_xclk = CAM_PIN_XCLK,
@@ -61,7 +103,6 @@ static camera_config_t camera_config = {
     .pin_vsync = CAM_PIN_VSYNC,
     .pin_href = CAM_PIN_HREF,
     .pin_pclk = CAM_PIN_PCLK,
-
     //XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
     // chose 10 MHz - seems to work better
     .xclk_freq_hz = 10000000,
@@ -81,6 +122,9 @@ static camera_config_t camera_config = {
     .fb_count = 2,       //When jpeg mode is used, if fb_count more than one, the driver will work in continuous mode.
     .fb_location = CAMERA_FB_IN_PSRAM,
     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+
+#endif
+
 };
 
 // ==== Function calls ===================================
@@ -88,6 +132,7 @@ static camera_config_t camera_config = {
 // init the camera with our pre-defined settings above
 esp_err_t init_camera()
 {   
+    // TODO: see if this is required or not - was causing issue with camera load
     // changing some of the sensor settings for better quality
     // sensor_t *s = esp_camera_sensor_get();
     // s->set_gain_ctrl(s, 0); // auto gain off (1 or 0)
@@ -143,44 +188,37 @@ esp_err_t take_picture()
 }
 
 
-// main task loop...
 
-void camera_task( void *param )
+// Task to be used for polling the wifi button press and starting camera operations
+void camera_button_poll(void* params)
 {
+    int lastState = 1;
+
     for (;;)
     {
-        // expecting the buttong to be debounced already
-        if ( gpio_get_level(CAM_BUTTON) == 0 )
+        int currentState = gpio_get_level(CAM_BUTTON);
+
+        if ( currentState == 0 && lastState == 1 )
         {
-            // attempting to take a picture from the camera
-            if ( take_picture() == ESP_OK )
-            {
-                printf("task took photo...\n");
-
-                // pass the photo by reference to http process function...
-                if ( /*function here to check and pass http func... */ 1)
-                {
-                    printf("pic sent to server...");
-                }
-                else{
-                    printf("pic NOT sent to server...");
-                }
-            }
-            else
-            {
-                printf("task was not able to take a photo...\n");
+            // taking a picture
+            if (take_picture() != ESP_OK) {
+                printf("picture taken!\n");
             }
 
-            // add delay of 5 seconds to ensure we dont take multiple photos
-            // this will let other tasks run within those 5 seconds before polling again
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            // FOR NOW: just check to see if buffer has information
+            if ( get_fb() == NULL )
+            {
+                printf("Picture was not taken???\n");
+            }
+            else {
+                printf("Picture was taken on button press!\n");
+            }
         }
-
-        vTaskDelay(pdMS_TO_TICKS(1000));    // poll the camera every second
+        
+        lastState = currentState;
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
+
 }
-
-
-
 
 

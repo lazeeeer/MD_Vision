@@ -17,16 +17,16 @@
 #include "u8g2_esp32_hal.h"
 
 // Defines needed for u8g2 SPI communication
-#define SPI_MOSI_PIN    23
-#define SPI_MISO_PIN    19
-#define SPI_SCK_PIN     18
-#define SPI_CS_PIN      0  // this if for DISPLAY only
-#define SPI_RESET_PIN   2  // this is for DISPLAY only 
+#define SPI_MOSI_PIN    35 // was 23
+#define SPI_MISO_PIN    36 // was 19
+#define SPI_SCK_PIN     37 // was 18
+#define SPI_CS_PIN      42  // this if for DISPLAY only
+#define SPI_RESET_PIN   1  // this is for DISPLAY only 
 
-#define PIN_NUM_DC      21
+#define PIN_NUM_DC      2 // used to be 21
 #define PIN_NUM_BCKL    5
 
-#define DISP_BUTTON     32   // GPIO display button is connected to
+#define DISP_BUTTON     48   // GPIO display button is connected to
 #define DEBOUNCE_DELAY  50  // delay in ms for debouncing check
 
 #define RADIOLIB_ERR_NONE 0 // define used to know if we got error from radio functions
@@ -112,7 +112,7 @@ void display_main_hud(void)
     u8g2_DrawStr(&mainDisp, 0, 10, "Main HUD text");
 
     // draw small notification dot
-    u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
+    //u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
 
     u8g2_SendBuffer(&mainDisp);
 }
@@ -133,17 +133,23 @@ void display_clear_msg_text()
 // simple function to update message notification on display
 void display_update_notif()
 {
+    int msgs = uxQueueMessagesWaiting(xMsgBufferQueue);
+
     // checking number of available messages in the RF69 module's memory
-    if ( 1 > 0 )
+    if ( msgs > 0 )
     {
         // code to add-in notif symbol from display
         u8g2_SetDrawColor(&mainDisp, 1);
         u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
+        u8g2_SendBuffer(&mainDisp);
+        //u8g2_DrawStr(&mainDisp, 119, 59, (char)msgs );
     }
     else {
         // code to remove notif symbol from display
         u8g2_SetDrawColor(&mainDisp, 0);
         u8g2_DrawDisc(&mainDisp, 124, 59, 2, U8G2_DRAW_ALL);
+        u8g2_SendBuffer(&mainDisp);
+        //u8g2_DrawStr(&mainDisp, 119, 59, "0" );
     }
 }
 
@@ -237,61 +243,67 @@ void write_to_disp(const char* str)
 void displayLoop(void *params)
 {
     char message[MSG_CHAR_LEN];    // buffer to take in the packets from RF module
-    bool buttonReleased = true;
+    bool last_state = gpio_get_level(DISP_BUTTON);
 
-   static int processState = 0; 
+    int processState = 0; 
     /* display loop state machine
         0 - idle,       - wait for message on queue     - go to 1
         1 - displaying, - look for button press         - go to 0
     */
 
-   // setting up the GPIO that the button is connected to 
-    gpio_config_t io_conf = {
+
+    gpio_config_t io_config = {
         .pin_bit_mask = (1ULL << DISP_BUTTON),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
     };
-    gpio_config(&io_conf);
+    gpio_config(&io_config);
 
     // main event loop
     for(;;)
     {
         display_update_notif();     // check and update notif
-        display_update_battery();   // check and update battery
+        //display_update_battery();   // check and update battery
 
-        // updating button flag at each display poll
-        if ( gpio_get_level(DISP_BUTTON) == 1 ) {
-            buttonReleased = true;
-        }
+        bool current_state = gpio_get_level(DISP_BUTTON);
+        //printf("button currently reading: %d\n", current_state);
 
         if (processState == 0)     // idle - waiting for message_available && button_press
         {
             // Check if button is pressed AND messages avaialable in queue
             // NOTE: button press is debounced in hardware with RC circuit
-            if ( (buttonReleased) && (gpio_get_level(DISP_BUTTON) == 0) && ( uxQueueMessagesWaiting(xMsgBufferQueue) > 0) )
+            if ( (current_state == 0) && (last_state == 1) && ( uxQueueMessagesWaiting(xMsgBufferQueue) > 0) )
             {
-                // write the message to the display then clean the buffer after
-                write_to_disp( (char*)message );
-                memset(message, 0, sizeof(message));
-
+                // get message from buffer and put it into message[] by reference
+                if ( xQueueReceive( xMsgBufferQueue, &message, portMAX_DELAY) == pdPASS)
+                {
+                    // write the message to the display then clean the buffer after
+                    write_to_disp( message );
+                    memset(message, 0, sizeof(message));
+                }
+                else {
+                    printf("Could not get message from xMsgBufferQueue for some reason...\n");
+                }
                 processState = 1;   //change to next state
-                buttonReleased = false;
             }
-            // end of state...
         }
         else if (processState == 1)    // displaying message, waiting for next button input
         {
             // checking same button state and button 
-            if ( (buttonReleased) && (gpio_get_level(DISP_BUTTON) == 0) )
+            if ( (current_state == 0) && (last_state == 1) && (gpio_get_level(DISP_BUTTON) == 0) )
             {
                 display_clear_msg_text();
                 processState = 0;   // switching state back to idle
-                buttonReleased = false;
             }
         }
 
+        last_state = current_state;     // for button state
+
         // yield to scheduler for a bit between checks
-        vTaskDelay(pdMS_TO_TICKS(500));
+        //printf("Minimum stack space left is: %u\r\n", uxTaskGetStackHighWaterMark(NULL));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
 }

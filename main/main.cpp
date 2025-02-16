@@ -20,11 +20,8 @@ extern "C" {
     // including header files with all globals needed
     #include "sync_objects.h"
 
-    // including component containing init and POST code
-
-
+    // library used for JSON parsing
     #include "cJSON.h"
-
 
     // including camera and sd libraries
     #include "esp_camera.h"
@@ -60,9 +57,8 @@ QueueHandle_t q;
 
 // ==== Macros for enabling / disabling certain parts of the code
 
-#define ENABLE_WIFI (1)
-//#define ENABLE_UART (1)
-
+#define ENABLE_WIFI (0)
+#define ENABLE_UART (0)
 
 
 // ==== Definitions needed for main program ==== //
@@ -86,7 +82,6 @@ uart_config_t uart_config = {
     .stop_bits = UART_STOP_BITS_1,
     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
 };
-
 
 
 
@@ -114,7 +109,7 @@ esp_err_t init_sync_objects(void)
 }
 
 
-#ifdef ENABLE_UART
+#if ENABLE_UART
 // task to listen for input in UART buffer
 void UART_input(void *param)
 {
@@ -192,9 +187,6 @@ void queue_to_disp(void *param)
 }
 #endif
 
-
-
-
 /*
     ***NOTE
     THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
@@ -203,6 +195,8 @@ void queue_to_disp(void *param)
 extern "C" void app_main(void)
 {
 
+    gpio_install_isr_service(0);
+
     // calling function to init all variables from the sync_objects.h file`
     esp_err_t initCheck = init_sync_objects();
     if ( initCheck != ESP_OK )
@@ -210,7 +204,6 @@ extern "C" void app_main(void)
         printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
         abort();
     }
-
 
     // Install UART driver using an event queue here
     uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
@@ -221,78 +214,74 @@ extern "C" void app_main(void)
     q = xQueueCreate(10, MSG_CHAR_LEN);
 
 
-
-    // if ( init_wifi_comms() == ESP_OK ) 
-    // {
-    //     printf("Wifi started just fine!\n");
-    // }
-
-    // // running the camera stuff
-    // if ( init_camera() == ESP_OK)
-    // {
-    //     printf("camera started...\n");
-    // }
-    // else {
-    //     printf("camera couldnt start...");
-    //     abort();
-    // }
-
-
-    // if ( get_fb() == NULL )
-    // {
-    //     printf("frame buffer is empty\n");
-    // }
-
-    // vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // if ( take_picture() == ESP_OK)
-    // {
-    //     printf("picture taken!");
-    // }
-
-    // if ( get_fb() == NULL )
-    // {
-    //     printf("frame buffer still empty???\n");
-    // }
-    // else {
-    //     printf("frame buffer not empty anymore!");
-    // }
-
-    // // printf("sending to server...\n");
-    // esp_err_t ret = send_image_to_server( get_fb() );
+    //init radio
+    if (init_radio() == ESP_OK)
+    {
+        printf("Radio has started!\n");
+        // write_to_disp("Radio has started!");
+        // vTaskDelay(pdMS_TO_TICKS(1000));
+        // display_clear_msg_text();
+    }
+    else {
+        printf("Radio couldnt start...\n");
+        // write_to_disp("Radio couldnt start...");
+        // vTaskDelay(pdMS_TO_TICKS(1000));
+        // display_clear_msg_text();
+    }
 
 
-    // if (init_radio() != ESP_OK)
-    // {
-    //     printf("Something went wrong in the init function...\n");
-    // }
+    //init display
+    if (init_display() == ESP_OK )
+    {
+        printf("Display has started!\n");
+    }
+    else {
+        printf("Display couldnt start...\n");
+        abort();
+    }
 
-    //init and test the display
-    //init_display();
+    // init camera
+    if ( init_camera() == ESP_OK)
+    {
+        printf("Camera has started!\n");
+    }
+    else {
+
+        printf("Camera couldnt start...\n");
+        abort();
+    }
+
+    #if ENABLE_WIFI
+        // init wifi
+        if ( init_wifi_comms() == ESP_OK )
+        {
+            printf("Wifi has started!\n");
+        }
+        else {
+            printf("Wifi couldnt start...\n");
+            abort();
+        }
+    #endif
 
 
-    // testing JSON frame
-    const char *json_string = "{"
-        "\"patient_name\": \"john doe\","
-        "\"check_in_date\": \"2025-01-01\","
-        "\"last_check_in_time\": \"14:30:00\","
-        "\"current_doctor\": \"dr. smith\""
-    "}";
+        if (take_picture() == ESP_OK) { printf("picture taken!\n");
+        }
 
-    printf("\n\n");
+        camera_fb_t *pic = get_fb();
+        printf("size of image is: %d\n", pic->len);
 
-    // testing the parse JSON function
-    printf("TESTING JSON PARSE FUNCTION:\n\n");
-    parse_json(json_string);
 
 
     // --- CREATING TASKS --- //
-    xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
-    //xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
-    //xTaskCreate(receive_transmission, "receive loop task", 4096, NULL, 1, NULL);
-    //xTaskCreate(displayLoop, "displayLoop shid", 1024, NULL, 1, NULL);
+    xTaskCreate( poll_radio, "Poll RF Module", 4096, NULL, 5, NULL);
+    xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
+    //xTaskCreate( camera_button_poll, "task for polling camera button", 256,NULL, 5, NULL);
+    //xTaskCreate(receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
 
-
+    #if ENABLE_UART
+        xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
+        xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
+    #endif
 
     // end of main...`
 }

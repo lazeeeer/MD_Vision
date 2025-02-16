@@ -415,11 +415,6 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
 
 
 
-// TODO: STEVEN MAKE THIS 
-// THIS IS THE FUNCTION TO CALL TO REPEATEDLT ON COMMAND I THINK
-esp_err_t connect_tcp_server()
-{
 
-    return ESP_OK;
-}
+
 

@@ -1,6 +1,260 @@
 #ifndef ESP_HAL_H
 #define ESP_HAL_H
 
+
+// include RadioLib
+#include <RadioLib.h>
+#include <rom/ets_sys.h>
+#include "driver/spi_common.h"
+#include "driver/spi_master.h"
+
+#include "driver/gpio.h"
+#include "hal/gpio_hal.h"
+#include "esp_timer.h"
+#include "esp_log.h"
+#include "soc/gpio_sig_map.h"
+#include "soc/rtc.h"
+
+#include "esp_system.h"
+#include "esp_intr_alloc.h"
+
+#if CONFIG_IDF_TARGET_ESP32  
+
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/ets_sys.h"
+#include "esp32s2/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/ets_sys.h"
+#include "esp32s3/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32C2
+#include "esp32c2/rom/ets_sys.h"
+#include "esp32c2/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/rom/ets_sys.h"
+#include "esp32c3/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32C6
+#include "esp32c6/rom/ets_sys.h"
+#include "esp32c6/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rom/ets_sys.h"
+#include "esp32h2/rom/gpio.h"
+#else
+#error Target CONFIG_IDF_TARGET is not supported
+#endif
+
+// define Arduino-style macros
+#define LOW                         (0x0)
+#define HIGH                        (0x1)
+#define INPUT                       (0x01)
+#define OUTPUT                      (0x03)
+#define RISING                      (0x01)
+#define FALLING                     (0x02)
+#define NOP()                       asm volatile ("nop")
+
+#define MATRIX_DETACH_OUT_SIG       (0x100)
+#define MATRIX_DETACH_IN_LOW_PIN    (0x30)
+
+
+// create a new ESP-IDF hardware abstraction layer
+// the HAL must inherit from the base RadioLibHal class
+// and implement all of its virtual methods
+// this is pretty much just copied from Arduino ESP32 core
+class EspHal2 : public RadioLibHal {
+  public:
+    // default constructor - initializes the base HAL and any needed private members
+    EspHal2(int8_t sck, int8_t miso, int8_t mosi)
+      : RadioLibHal(INPUT, OUTPUT, LOW, HIGH, RISING, FALLING),
+      spiSCK(sck), spiMISO(miso), spiMOSI(mosi)  {
+        gpio_install_isr_service((int)ESP_INTR_FLAG_IRAM);
+    }
+
+    void init() override {
+      // we only need to init the SPI here
+      spiBegin();
+      return;
+    }
+
+    void term() override {
+      // we only need to stop the SPI here
+      spiEnd();
+      return;
+    }
+
+    // GPIO-related methods (pinMode, digitalWrite etc.) should check
+    // RADIOLIB_NC as an alias for non-connected pins
+    void pinMode(uint32_t pin, uint32_t mode) override {
+      if(pin == RADIOLIB_NC) {
+        return;
+      }
+
+      gpio_hal_context_t gpiohal;
+      gpiohal.dev = GPIO_LL_GET_HW(GPIO_PORT_0);
+
+      gpio_config_t conf = {
+        .pin_bit_mask = (1ULL<<pin),
+        .mode = (gpio_mode_t)mode,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = (gpio_int_type_t)gpiohal.dev->pin[pin].int_type,
+      };
+      gpio_config(&conf);
+      return;
+    }
+
+    void digitalWrite(uint32_t pin, uint32_t value) override {
+      if(pin == RADIOLIB_NC) {
+        return;
+      }
+
+      gpio_set_level((gpio_num_t)pin, value);
+    }
+
+    uint32_t digitalRead(uint32_t pin) override {
+      if(pin == RADIOLIB_NC) {
+        return(0);
+      }
+
+      return(gpio_get_level((gpio_num_t)pin));
+    }
+
+    void attachInterrupt(uint32_t interruptNum, void (*interruptCb)(void), uint32_t mode) override {
+      if(interruptNum == RADIOLIB_NC) {
+        return;
+      }
+      gpio_set_intr_type((gpio_num_t)interruptNum, (gpio_int_type_t)(mode & 0x7));
+
+      // this uses function typecasting, which is not defined when the functions have different signatures
+      // untested and might not work
+      gpio_isr_handler_add((gpio_num_t)interruptNum, (void (*)(void*))interruptCb, NULL);
+      return;
+    }
+
+    void detachInterrupt(uint32_t interruptNum) override {
+      if(interruptNum == RADIOLIB_NC) {
+        return;
+      }
+
+      gpio_isr_handler_remove((gpio_num_t)interruptNum);
+	    gpio_wakeup_disable((gpio_num_t)interruptNum);
+      gpio_set_intr_type((gpio_num_t)interruptNum, GPIO_INTR_DISABLE);
+      return;
+    }
+
+    void delay(unsigned long ms) override {
+      vTaskDelay(ms / portTICK_PERIOD_MS);
+      return;
+    }
+
+    void delayMicroseconds(unsigned long us) override {
+      ets_delay_us(us);
+      return;
+    }
+
+    unsigned long millis() override {
+      return((unsigned long)(esp_timer_get_time() / 1000ULL));
+    }
+
+    unsigned long micros() override {
+      return((unsigned long)(esp_timer_get_time()));
+    }
+
+    long pulseIn(uint32_t pin, uint32_t state, unsigned long timeout) override {
+      if(pin == RADIOLIB_NC) {
+        return(0);
+      }
+
+      this->pinMode(pin, INPUT);
+      uint32_t start = this->micros();
+      uint32_t curtick = this->micros();
+
+      while(this->digitalRead(pin) == state) {
+        if((this->micros() - curtick) > timeout) {
+          return(0);
+        }
+      }
+
+      return(this->micros() - start);
+    }
+
+    void spiBegin() {
+        spi_bus_config_t buscfg = {};
+        buscfg.miso_io_num = spiMISO;
+        buscfg.mosi_io_num = spiMOSI;
+        buscfg.sclk_io_num = spiSCK;
+        buscfg.quadwp_io_num = -1;
+        buscfg.quadhd_io_num = -1;
+        buscfg.data4_io_num = -1;
+        buscfg.data5_io_num = -1;
+        buscfg.data6_io_num = -1;
+        buscfg.data7_io_num = -1;
+
+        // new debug additions:
+        buscfg.flags = 0;     // ensure acting as a slave
+
+        esp_err_t ret = spi_bus_initialize(SPI3_HOST, &buscfg,  SPI_DMA_CH_AUTO);
+        if (ret != ESP_OK) {
+            ESP_LOGE("SPI", "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
+        }
+        spi_device_interface_config_t devcfg = {};
+        devcfg.clock_speed_hz = 2 * 1000 * 1000; // 1MHz
+        devcfg.mode = 0;
+        devcfg.spics_io_num = -1; //ISSUE HERE???
+        devcfg.queue_size = 1;
+        ret = spi_bus_add_device(SPI3_HOST, &devcfg, &spi);
+        if (ret != ESP_OK) {
+            ESP_LOGE("SPI", "Failed to add SPI device: %s", esp_err_to_name(ret));
+        }
+        return;
+    }
+
+    void spiBeginTransaction() {
+      // not needed - in ESP32 Arduino core, this function
+      // repeats clock div, mode and bit order configuration
+      return;
+    }
+
+    uint8_t spiTransferByte(uint8_t data) {
+      spi_transaction_t t;
+      memset(&t, 0, sizeof(t));  // Zero out the transaction
+      t.length = 8;              // Command is 8 bits
+      t.tx_buffer = &data;       // The data is the cmd itself
+      t.rx_buffer = &data;       // Receive buffer is the same
+      spi_device_polling_transmit(spi, &t);
+      return data;               // Return the received byte
+    }
+
+    void spiTransfer(uint8_t* out, size_t len, uint8_t* in) {
+      spi_transaction_t t;
+      memset(&t, 0, sizeof(t));  // Zero out the transaction
+      t.length = len * 8;        // Length is in bits
+      t.tx_buffer = out;         // The data to send
+      t.rx_buffer = in;          // The data to receive
+      spi_device_polling_transmit(spi, &t);
+      return;
+    }
+
+    void spiEndTransaction() {
+      // nothing needs to be done here
+      return;
+    }
+
+    void spiEnd() {
+      // detach pins
+      //spi_bus_free(SPI3_HOST);
+      return;
+    }
+
+  private:
+    // the HAL can contain any additional private members
+    int8_t spiSCK;
+    int8_t spiMISO;
+    int8_t spiMOSI;
+    spi_device_handle_t spi;
+};
+
+
+
+/*
 // include RadioLib
 #include <RadioLib.h>
 
@@ -318,5 +572,7 @@ class EspHal : public RadioLibHal {
     int8_t spiMOSI;
     spi_dev_t * spi = (volatile spi_dev_t *)(DR_REG_SPI2_BASE);
 };
+
+*/
 
 #endif
