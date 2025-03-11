@@ -11,6 +11,8 @@
 #include "esp_netif.h"
 
 #include "esp_camera.h"
+#include "GUI_drivers.h"
+#include "esp_timer.h"
 
 #include "cJSON.h"
 
@@ -32,8 +34,8 @@
 // ==== Defines needed for code =============================
 
 // Defines for WiFi connection and server parameters
-#define WIFI_SSID       "SLIM-PC"
-#define WIFI_PASSWORD   "12345678"
+#define WIFI_SSID       "Danijela"
+#define WIFI_PASSWORD   "Gumdrop1"
 
 #define SERVER_IP       "INSERT"
 #define SERVER_SOCKET   "INSERT"
@@ -154,7 +156,7 @@ esp_err_t connect_wifi()
     ));
 
 
-    // Start WiFi Driver shid //
+    // Start WiFi Driver stuff //
     wifi_config_t wifi_config = {
         
         // insert all paramets for wifi connection here
@@ -248,56 +250,42 @@ esp_err_t init_wifi_comms()
 
 // ==== Function calls for data processing and server interaction =======================
 
+//event handler for when we make a request to a server as a client
+esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
 
-// event handler for when we make a request to a server as a client
-// esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
+    if (evt->event_id == HTTP_EVENT_ON_DATA) {
 
-//     if (evt->event_id == HTTP_EVENT_ON_DATA) {
-
-//         // making sure out HTTP buffer isnt overflowed
-//         if (evt->data_len < MAX_HTTP_OUTPUT_BUFFER) {
-//             printf("%s\n", (char *)evt->data);
-//             strncpy(response_buffer, (char *)evt->data, evt->data_len);
-//             response_buffer[evt->data_len] = '\0';  // Null-terminate the buffer
-//         }
-//     }
-//     return ESP_OK;
-// }
+        // making sure out HTTP buffer isnt overflowed
+        if (evt->data_len < MAX_HTTP_OUTPUT_BUFFER) {
+            //printf("%s\n", (char *)evt->data);
+            strncpy(response_buffer, (char *)evt->data, evt->data_len);
+            response_buffer[evt->data_len] = '\0';  // Null-terminate the buffer
+        }
+    }
+    return ESP_OK;
+}
 
 
 
 // function to parse the JSON string we would get from the HTTP response
 void parse_json( const char * jsonString)
 {
+
     // passinng the json to the parser and checking for any issues
     cJSON *root = cJSON_Parse(jsonString);
     if (!root)
     {
         printf("Error before: %s\n", cJSON_GetErrorPtr());
     }
-    
-    // extracting a "device field"
-    cJSON *name = cJSON_GetObjectItem(root, "patient_name");
-    if ( cJSON_IsString(name) ) {
-        printf("name is: %s\n", name->valuestring);
-    }
 
     // extracting a "device field"
-    cJSON *date = cJSON_GetObjectItem(root, "check_in_date");
-    if ( cJSON_IsString(date) ) {
-        printf("date is: %s\n", date->valuestring);
-    }
-
-    // extracting a "device field"
-    cJSON *checkIn = cJSON_GetObjectItem(root, "last_check_in_time");
-    if ( cJSON_IsString(checkIn) ) {
-        printf("checkIn is: %s\n", checkIn->valuestring);
-    }
-
-    // extracting a "device field"
-    cJSON *doctor = cJSON_GetObjectItem(root, "current_doctor");
-    if ( cJSON_IsString(doctor) ) {
-        printf("doctor is: %s\n", doctor->valuestring);
+    cJSON *first_name = cJSON_GetObjectItem(root, "f_name");
+    if ( cJSON_IsString(first_name) ) {
+        printf("name is: %s\n", first_name->valuestring);
+        write_to_disp(first_name->valuestring);
+        printf("REACHED after messagekj\n");
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        display_clear_msg_text();
     }
 
     // clearning the cJSON root used to parse before completing
@@ -305,92 +293,51 @@ void parse_json( const char * jsonString)
 }
 
 
-// function call for testing HTTP client request to our Flask server
-// void test_http_request() {
-    
-//     // condfiguring the client struct for WHERE we want to connect to 
-//     esp_http_client_config_t config = {
-//         .url = "http://172.20.10.3:5000/ping",
-//         //.event_handler = _http_event_handler,
-//         .auth_type = HTTP_AUTH_TYPE_NONE,
-//     };
-//     esp_http_client_handle_t client = esp_http_client_init(&config);
 
-//     // sending the request as a client
-//     // when request is made, our event handler will fill the response buffer global variable with the response
-//     esp_err_t err = esp_http_client_perform(client);
-//     if (err == ESP_OK) {
-//         printf("REACHED1\n");
-//         printf("%s\n", response_buffer);
-//         printf("HTTP GET Status = %d, content_length = %lld\n", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
-//         printf("REACHED2\n");
+// simple function that takes a URL to ping as a test
+esp_err_t http_ping_server(const char* url) {
 
-//         // passing the response buffer to the JSON parser for output
-//         parse_json(response_buffer);
+    int64_t start_time = esp_timer_get_time();  // start time
 
-//     } else {
-//         // something went wrong, print the err using esp_err_to_name()
-//         printf("HTTP GET request failed: %s\n", esp_err_to_name(err));
-//     }
+    esp_http_client_config_t config = {
+        .url = url,
+        .event_handler = _http_event_handler,
+    };
 
-//     // freeing memmory of the client struct
-//     esp_http_client_cleanup(client);
-// }
+    // config and send the client request
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_err_t err = esp_http_client_perform(client);
 
+    int64_t stop_time = esp_timer_get_time();   // stopping and measuring time after client request
 
-
-
-// Callback to handle the received data
-esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
-    switch (evt->event_id) {
-        case HTTP_EVENT_ERROR:
-            printf("HTTP_EVENT_ERROR");
-            break;
-        case HTTP_EVENT_ON_DATA:
-            if (evt->data_len > 0) {
-                printf("HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-                printf("Received data: %s", (char *)evt->data);
-            }
-            break;
-        default:
-            break;
+    if (err == ESP_OK) {
+        printf("HTTP GET Status = %d, content_length = %lld \n", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
+        printf("Elapsed time was: %lld microseconds\n", start_time-stop_time);
+    } else {
+        printf("HTTP GET request failed: %s\n", esp_err_to_name(err));
+        return ESP_FAIL;
     }
+
+    // Clean up
+    esp_http_client_cleanup(client);
     return ESP_OK;
 }
 
-// void test_http_request() {
-//     esp_http_client_config_t config = {
-//         .url = "http://172.20.10.3:5000/ping", // Replace with your Flask server's IP address
-//         .event_handler = _http_event_handler,
-//     };
-
-//     esp_http_client_handle_t client = esp_http_client_init(&config);
-
-//     // Perform HTTP GET request
-//     esp_err_t err = esp_http_client_perform(client);
-
-//     if (err == ESP_OK) {
-//         printf("HTTP GET Status = %d, content_length = %lld", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
-//     } else {
-//         printf("HTTP GET request failed: %s", esp_err_to_name(err));
-//     }
-
-//     // Clean up
-//     esp_http_client_cleanup(client);
-// }
 
 
-
+// function to use in order to send an image to the server and get JSON patient data back
 esp_err_t send_image_to_server( camera_fb_t *fb )
 {
     esp_http_client_config_t config = {
-        .url = "http://172.20.10.3:5000/upload_image", // Flash server URL for image upload
+        .url = "http://10.0.0.73:5000/upload_image", // Flash server URL for image upload
+        .event_handler = _http_event_handler,
         .method = HTTP_METHOD_POST,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     // filling header information for client request
     esp_http_client_set_header(client, "Content-Type", "image/jpeg");
+    esp_http_client_set_header(client, "Content-Disposition", "form-data; name=\"file\"; filename=\"image.jpg\"");
     esp_http_client_set_post_field( client, (const char*)fb->buf, fb->len );
 
     esp_err_t err = esp_http_client_perform(client);    // sending the image
@@ -400,10 +347,19 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
     {
         int status_code = esp_http_client_get_status_code(client);
         printf("returned status code: %d\n", status_code);
+
+        // readiong JSON
+        int content_length = esp_http_client_get_content_length(client);
+        if (content_length > 0)
+        {   
+            printf("%s\n", response_buffer);
+            parse_json(response_buffer);
+        }
     }
     else {
         printf("HTTP POST failed...\n");
     }
+
 
     // clean up before returning
     esp_http_client_cleanup(client);

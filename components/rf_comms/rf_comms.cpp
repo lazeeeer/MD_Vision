@@ -22,11 +22,11 @@ extern "C" {
 using namespace std;
 
 // Defines of pins needed for RadioLib SPI interface
-#define SPI_MOSI_PIN    35 // was 23
-#define SPI_MISO_PIN    36 // was 19
-#define SPI_SCK_PIN     37 // was 18
-#define SPI_CS_PIN      47 // was 5  // this is for RF only
-#define RFM_RESET_PIN   21 // was 4  // this is for RF only
+#define SPI_MOSI_PIN    36 // was 35 // was 23
+#define SPI_MISO_PIN    37 // was 36 // was 19
+#define SPI_SCK_PIN     35 // was 37 // was 18
+#define SPI_CS_PIN      21 // was 5  // this is for RF only
+#define RFM_RESET_PIN   47 // was 4  // this is for RF only
 
 #define DIO0_PIN        39   // was 26 
 #define DIO1_PIN        40  // was 14  // might not be needed
@@ -139,6 +139,7 @@ void poll_radio(void *param)
     for (;;)    // main task loop
     {  
         int num = get_numMessages();
+        printf("numer of messages is: %d\n", num);
 
         if (num > 0)   // message available in buffer
         {

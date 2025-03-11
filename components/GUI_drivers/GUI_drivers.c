@@ -17,14 +17,13 @@
 #include "u8g2_esp32_hal.h"
 
 // Defines needed for u8g2 SPI communication
-#define SPI_MOSI_PIN    35 // was 23
-#define SPI_MISO_PIN    36 // was 19
-#define SPI_SCK_PIN     37 // was 18
+#define SPI_MOSI_PIN    36 // was 35 // was 23
+#define SPI_MISO_PIN    -1
+#define SPI_SCK_PIN     35 // was 37 // was 18
 #define SPI_CS_PIN      42  // this if for DISPLAY only
 #define SPI_RESET_PIN   1  // this is for DISPLAY only 
 
 #define PIN_NUM_DC      2 // used to be 21
-#define PIN_NUM_BCKL    5
 
 #define DISP_BUTTON     48   // GPIO display button is connected to
 #define DEBOUNCE_DELAY  50  // delay in ms for debouncing check

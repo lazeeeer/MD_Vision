@@ -191,16 +191,16 @@ class EspHal2 : public RadioLibHal {
         // new debug additions:
         buscfg.flags = 0;     // ensure acting as a slave
 
-        esp_err_t ret = spi_bus_initialize(SPI3_HOST, &buscfg,  SPI_DMA_CH_AUTO);
-        if (ret != ESP_OK) {
-            ESP_LOGE("SPI", "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
-        }
+        // esp_err_t ret = spi_bus_initialize(SPI3_HOST, &buscfg,  SPI_DMA_CH_AUTO);
+        // if (ret != ESP_OK) {
+        //     ESP_LOGE("SPI", "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
+        // }
         spi_device_interface_config_t devcfg = {};
         devcfg.clock_speed_hz = 2 * 1000 * 1000; // 1MHz
         devcfg.mode = 0;
         devcfg.spics_io_num = -1; //ISSUE HERE???
         devcfg.queue_size = 1;
-        ret = spi_bus_add_device(SPI3_HOST, &devcfg, &spi);
+        esp_err_t ret = spi_bus_add_device(SPI3_HOST, &devcfg, &spi);
         if (ret != ESP_OK) {
             ESP_LOGE("SPI", "Failed to add SPI device: %s", esp_err_to_name(ret));
         }

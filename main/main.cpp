@@ -9,7 +9,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
     #include <stdio.h>
     #include <string.h>
 
@@ -38,6 +37,7 @@ extern "C" {
     #include "freertos/semphr.h"
     #include "driver/gpio.h"
     #include "driver/spi_master.h"
+    #include "esp_timer.h"
 
     // including UART libraries
     #include "driver/uart.h"
@@ -49,27 +49,22 @@ extern "C" {
 }
 #endif
 
-
 QueueHandle_t q;
 #define MSG_CHAR_LEN 128
 
 
-
 // ==== Macros for enabling / disabling certain parts of the code
-
 #define ENABLE_WIFI (0)
 #define ENABLE_UART (0)
 
 
 // ==== Definitions needed for main program ==== //
-
 // global control objects...
 SemaphoreHandle_t   xMsgBufferSemphr = NULL;
 QueueHandle_t       xMsgBufferQueue = NULL; 
 
 
-// ==== UART definitions ============== //
-
+// ==== UART definitions ===================== //
 #define UART_PORT_NUM UART_NUM_0
 #define UART_BAUD_RATE 115200
 #define UART_RX_BUF_SIZE 1024
@@ -85,8 +80,7 @@ uart_config_t uart_config = {
 
 
 
-// ==== Functions for main loop ================ //
-
+// ==== Helper functions for the main loop ================ //
 esp_err_t init_sync_objects(void)
 {
     // init the msg buffer semaphore
@@ -104,100 +98,19 @@ esp_err_t init_sync_objects(void)
         printf("Message buffer queue could not be created...\n ");
         return ESP_FAIL;
     }
-
     return ESP_OK;
 }
 
 
-#if ENABLE_UART
-// task to listen for input in UART buffer
-void UART_input(void *param)
-{
-    size_t len = 0;
-    uint8_t data;
-    char stringBuffer[MSG_CHAR_LEN];     //buffer to take in data from UART and pass it on 
-    int position = 0;
 
-    for (;;)    // task loop...
-    {   
-        // entering loop to continuously read bytes if available
-        while(1)
-        {   
-            //grabbing one byte of data
-            len = uart_read_bytes(UART_PORT_NUM, &data, 1, portMAX_DELAY);
-
-            // if there was a byte read, process it into the msg buffer
-            if (len > 0)
-            {   
-                // if the byte was a termination char, process the msg and send it
-                if (data == '\n' || data == '\r')
-                {
-                    // adding a null temrinator
-                    stringBuffer[position] = '\0';
-
-                    if(xQueueSend(q, stringBuffer, portMAX_DELAY) != pdPASS)
-                    {
-                        printf("could not put msg in queue :(\n)");
-                    }
-
-                    // clearing msg buffer and processing vars
-                    memset(stringBuffer, 0, strlen(stringBuffer));
-                    uart_flush(UART_PORT_NUM);
-                    position = 0;
-
-                }
-                else    // regular processing, append last read byte to msg buffer
-                {
-                    stringBuffer[position++] = data;
-                }
-            }
-            else { break; }     // if no bytes were read, break out of byte read loop
-        }
-
-        //adding to control can go back to scheduler...
-        vTaskDelay(100/portTICK_PERIOD_MS);
-    }
-}
-
-
-// task to taken in data and update the display
-void queue_to_disp(void *param)
-{
-    char msg[MSG_CHAR_LEN];
-
-    for (;;)
-    {   
-        // task yields until it gets a message on the queue
-        if (xQueueReceive(q, msg, portMAX_DELAY) == pdPASS)
-        {
-            // debug printing...
-            printf("queue has message\n");
-            printf("received: %s\n", msg);
-
-            //clear and write to disp
-            //clear_disp();
-            write_to_disp( msg );
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            display_clear_msg_text();
-
-            memset(msg, 0, MSG_CHAR_LEN);
-        }
-    }
-    // end of task...
-}
-#endif
-
-/*
-    ***NOTE
-    THIS ENTIRE FUNCTION IS JUST A SANDBOX RIGHT NOW FOR PROTOTYPING
-    ADD/TEST ANYTHING YOU WANT IN HEAR AS A 'WRAPPER FUNCTION' CALLED FROM OTHER .C FILES
-*/
+// Main entry point of the program, init all objects in here and start tasks...
 extern "C" void app_main(void)
 {
-
+    // needed to call for certain HALs
     gpio_install_isr_service(0);
 
-    // calling function to init all variables from the sync_objects.h file`
+
+    // call fucntion to init all the synchronization objects needed
     esp_err_t initCheck = init_sync_objects();
     if ( initCheck != ESP_OK )
     {
@@ -205,32 +118,10 @@ extern "C" void app_main(void)
         abort();
     }
 
-    // Install UART driver using an event queue here
-    uart_driver_install(UART_PORT_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-    uart_param_config(UART_PORT_NUM, &uart_config);
-    uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    //creating a queue to pass information around
-    q = xQueueCreate(10, MSG_CHAR_LEN);
-
-
-    //init radio
-    if (init_radio() == ESP_OK)
-    {
-        printf("Radio has started!\n");
-        // write_to_disp("Radio has started!");
-        // vTaskDelay(pdMS_TO_TICKS(1000));
-        // display_clear_msg_text();
-    }
-    else {
-        printf("Radio couldnt start...\n");
-        // write_to_disp("Radio couldnt start...");
-        // vTaskDelay(pdMS_TO_TICKS(1000));
-        // display_clear_msg_text();
-    }
-
-
+    // ==== Initializing all the hardware needed for system ==================== //
     //init display
+    // DISPLAY HAL WILL INIT SPI BUS FOR BOTH ITSELF AND RADIO MODULE
     if (init_display() == ESP_OK )
     {
         printf("Display has started!\n");
@@ -240,16 +131,25 @@ extern "C" void app_main(void)
         abort();
     }
 
-    // init camera
-    if ( init_camera() == ESP_OK)
+    //init radio
+    if (init_radio() == ESP_OK)
     {
-        printf("Camera has started!\n");
+        printf("Radio has started!\n");
     }
     else {
-
-        printf("Camera couldnt start...\n");
-        abort();
+        printf("Radio couldnt start...\n");
     }
+
+    // // init camera
+    // if ( init_camera() == ESP_OK)
+    // {
+    //     printf("Camera has started!\n");
+    // }
+    // else {
+
+    //     printf("Camera couldnt start...\n");
+    //     abort();
+    // }
 
     #if ENABLE_WIFI
         // init wifi
@@ -264,24 +164,49 @@ extern "C" void app_main(void)
     #endif
 
 
-        if (take_picture() == ESP_OK) { printf("picture taken!\n");
-        }
+    // ==== TESTING SENDING IMAGE TO SERVER ==================== //
+    // take_picture();
 
-        camera_fb_t *pic = get_fb();
-        printf("size of image is: %d\n", pic->len);
+    // camera_fb_t *pic = get_fb();
+    // printf("size of image is: %d\n", pic->len);
 
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // int64_t start_time = esp_timer_get_time();
+
+    //     esp_err_t state = send_image_to_server(pic);
+
+    // int64_t stop_time = esp_timer_get_time();
+    // int64_t elapsted_time = stop_time - start_time;
+
+    // printf("elapsted time was: %lld microseconds\n", elapsted_time);
+
+    // if ( state != ESP_OK )
+    // {
+    //     printf("something went wrong\n");
+    // }
+
+    
+
+    // SAND BOX TESTING AREA //
+
+    // if ( http_ping_server("https://httpbin.org/get") == ESP_OK ) {
+    //     printf("ping was succesful!\n");
+    // }
+    // else {
+    //     printf("something wert wrong in ping...\n");
+    // }
+
+
+
+    // ===================== // 
 
 
     // --- CREATING TASKS --- //
     xTaskCreate( poll_radio, "Poll RF Module", 4096, NULL, 5, NULL);
-    xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
+    //xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
     //xTaskCreate( camera_button_poll, "task for polling camera button", 256,NULL, 5, NULL);
     //xTaskCreate(receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
-
-    #if ENABLE_UART
-        xTaskCreate(UART_input, "reading the UART", 2048, NULL, 1, NULL);
-        xTaskCreate(queue_to_disp, "passing info read to disp", 2024, NULL, 1, NULL);
-    #endif
 
     // end of main...`
 }

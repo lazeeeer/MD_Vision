@@ -50,11 +50,11 @@ uint8_t u8g2_esp32_spi_byte_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void 
                   memset(&bus_config, 0, sizeof(spi_bus_config_t));
 		  bus_config.sclk_io_num   = u8g2_esp32_hal.clk; // CLK
 		  bus_config.mosi_io_num   = u8g2_esp32_hal.mosi; // MOSI
-		  bus_config.miso_io_num   = -1; // MISO
+		  bus_config.miso_io_num   = GPIO_NUM_37; // MISO
 		  bus_config.quadwp_io_num = -1; // Not used
 		  bus_config.quadhd_io_num = -1; // Not used
 		  //ESP_LOGI(TAG, "... Initializing bus.");
-		  //ESP_ERROR_CHECK(spi_bus_initialize(SPI3_HOST, &bus_config, SPI_DMA_CH_AUTO));
+		  ESP_ERROR_CHECK(spi_bus_initialize(SPI3_HOST, &bus_config, SPI_DMA_CH_AUTO));
 
 		  spi_device_interface_config_t dev_config;
 		  dev_config.address_bits     = 0;

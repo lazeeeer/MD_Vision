@@ -75,7 +75,7 @@ static camera_config_t camera_config = {
 
     // Always use JPEG for performance & memory efficiency
     .pixel_format = PIXFORMAT_JPEG,
-    .frame_size = FRAMESIZE_SVGA,   // 800x600 resolution
+    .frame_size = FRAMESIZE_VGA,   // 800x600 resolution
 
     // JPEG settings
     .jpeg_quality = 10, // Lower value = better quality
