@@ -135,6 +135,8 @@ void poll_radio(void *param)
 
     for (;;)    // main task loop
     {  
+        printf("RADIO TASK STARTED RUNNING\n");
+
         int num = get_numMessages();
         printf("numer of messages is: %d\n", num);
 

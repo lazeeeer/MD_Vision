@@ -65,10 +65,7 @@ QueueHandle_t displayQueue;
 static float capacity;
 
 
-
-
 // ==== List of main wrapper functions editing display ========== //
-
 
 // init the ADC for measuring the battery voltag - TODO: IMPLEMENT BATTERY READING
 void init_adc()
@@ -164,6 +161,7 @@ void display_clear_msg_text()
 void display_update_notif()
 {
     int msgs = uxQueueMessagesWaiting(xMsgBufferQueue);
+    printf("passed checking queue...\n");
 
     // checking number of available messages in the RF69 module's memory
     if ( msgs > 0 )
@@ -290,7 +288,6 @@ void displayLoop(void *params)
         1 - displaying, - look for button press         - go to 0
     */
 
-
     gpio_config_t io_config = {
         .pin_bit_mask = (1ULL << DISP_BUTTON),
         .mode = GPIO_MODE_INPUT,
@@ -303,6 +300,8 @@ void displayLoop(void *params)
     // main event loop
     for(;;)
     {
+        printf("DISPLAU TASK STARTED RUNNING\n");
+
         display_update_notif();     // check and update notif
         //display_update_battery();   // check and update battery
 
@@ -337,7 +336,7 @@ void displayLoop(void *params)
                 processState = 0;   // switching state back to idle
             }
         }
-
+        
         last_state = current_state;     // for button state
 
         // yield to scheduler for a bit between checks

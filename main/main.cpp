@@ -164,16 +164,16 @@ extern "C" void app_main(void)
 
 
     // ==== TESTING SENDING IMAGE TO SERVER ==================== //
-    take_picture();
-    camera_fb_t *pic = get_fb();
+    // take_picture();
+    // camera_fb_t *pic = get_fb();
     // printf("size of image is: %d\n", pic->len);
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    esp_err_t state = send_image_to_server(pic);
-    if ( state != ESP_OK )
-    {
-        printf("something went wrong\n");
-    }
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+    // esp_err_t state = send_image_to_server(pic);
+    // if ( state != ESP_OK )
+    // {
+    //     printf("something went wrong\n");
+    // }
     
     int64_t start_time = esp_timer_get_time();
         // generic function call...
@@ -194,8 +194,9 @@ extern "C" void app_main(void)
     // --- CREATING TASKS --- //
     xTaskCreate( poll_radio, "Poll RF Module", 4096, NULL, 5, NULL);
     xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
-    xTaskCreate( camera_button_poll, "task for polling camera button", 256,NULL, 5, NULL);
-    xTaskCreate( receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
+    xTaskCreate( camera_button_poll, "task for polling camera button", 4096, NULL, 5, NULL);
+
+    //xTaskCreate( receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
 
     // end of main, begin Task running ...`
 }

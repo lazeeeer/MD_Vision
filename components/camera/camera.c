@@ -17,7 +17,7 @@
 
 // ==== Defines For Camera ================================
 
-#define CAM_BUTTON   33
+#define CAM_BUTTON   38
 
 // defines for esp32s3 specifically
 #define PWDN_GPIO_NUM    -1
@@ -194,8 +194,19 @@ void camera_button_poll(void* params)
 {
     int lastState = 1;
 
+    gpio_config_t io_config = {
+        .pin_bit_mask = (1ULL << CAM_BUTTON),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_config);
+
+
     for (;;)
     {
+        printf("BUTTON TASK STARTED RUNNING\n");
         int currentState = gpio_get_level(CAM_BUTTON);
 
         if ( currentState == 0 && lastState == 1 )
@@ -214,9 +225,8 @@ void camera_button_poll(void* params)
                 printf("Picture was taken on button press!\n");
             }
         }
-        
         lastState = currentState;
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 
 }
