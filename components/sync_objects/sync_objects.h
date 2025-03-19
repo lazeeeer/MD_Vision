@@ -6,12 +6,9 @@
 
 
 
-
 // --- declaring all the globals needed for control below... --- //
-extern SemaphoreHandle_t    xMsgBufferSemphr;
+extern SemaphoreHandle_t    xMsgDisplaySem;
 extern QueueHandle_t        xMsgBufferQueue;
-
-
 
 
 #endif // SYNC_OBJECTS_H

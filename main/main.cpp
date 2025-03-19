@@ -60,7 +60,7 @@ QueueHandle_t q;
 
 // ==== Definitions needed for main program ==== //
 // global control objects...
-SemaphoreHandle_t   xMsgBufferSemphr = NULL;
+SemaphoreHandle_t   xMsgDisplaySem = NULL;
 QueueHandle_t       xMsgBufferQueue = NULL; 
 
 
@@ -79,15 +79,14 @@ uart_config_t uart_config = {
 };
 
 
-
 // ==== Helper functions for the main loop ================ //
 esp_err_t init_sync_objects(void)
 {
     // init the msg buffer semaphore
-    xMsgBufferSemphr = xSemaphoreCreateBinary();
-    if (xMsgBufferSemphr == NULL)
+    xMsgDisplaySem = xSemaphoreCreateBinary();
+    if (xMsgDisplaySem == NULL)
     {
-        printf("Message buffer semaphore could not be created...\n ");
+        printf("Message display semaphore could not be created...\n ");
         return ESP_FAIL;
     }
 
@@ -103,12 +102,12 @@ esp_err_t init_sync_objects(void)
 
 
 
+
 // Main entry point of the program, init all objects in here and start tasks...
 extern "C" void app_main(void)
 {
     // needed to call for certain HALs
     gpio_install_isr_service(0);
-
 
     // call fucntion to init all the synchronization objects needed
     esp_err_t initCheck = init_sync_objects();
@@ -140,16 +139,16 @@ extern "C" void app_main(void)
         printf("Radio couldnt start...\n");
     }
 
-    // // init camera
-    // if ( init_camera() == ESP_OK)
-    // {
-    //     printf("Camera has started!\n");
-    // }
-    // else {
+    // init camera
+    if ( init_camera() == ESP_OK)
+    {
+        printf("Camera has started!\n");
+    }
+    else {
 
-    //     printf("Camera couldnt start...\n");
-    //     abort();
-    // }
+        printf("Camera couldnt start...\n");
+        abort();
+    }
 
     #if ENABLE_WIFI
         // init wifi
@@ -165,31 +164,24 @@ extern "C" void app_main(void)
 
 
     // ==== TESTING SENDING IMAGE TO SERVER ==================== //
-    // take_picture();
-
-    // camera_fb_t *pic = get_fb();
+    take_picture();
+    camera_fb_t *pic = get_fb();
     // printf("size of image is: %d\n", pic->len);
 
-    // vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // int64_t start_time = esp_timer_get_time();
-
-    //     esp_err_t state = send_image_to_server(pic);
-
-    // int64_t stop_time = esp_timer_get_time();
-    // int64_t elapsted_time = stop_time - start_time;
-
-    // printf("elapsted time was: %lld microseconds\n", elapsted_time);
-
-    // if ( state != ESP_OK )
-    // {
-    //     printf("something went wrong\n");
-    // }
-
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    esp_err_t state = send_image_to_server(pic);
+    if ( state != ESP_OK )
+    {
+        printf("something went wrong\n");
+    }
     
+    int64_t start_time = esp_timer_get_time();
+        // generic function call...
+    int64_t elapsted_time = esp_timer_get_time() - start_time;
 
-    // SAND BOX TESTING AREA //
 
+
+    // Random ping testing code //
     // if ( http_ping_server("https://httpbin.org/get") == ESP_OK ) {
     //     printf("ping was succesful!\n");
     // }
@@ -199,14 +191,11 @@ extern "C" void app_main(void)
 
 
 
-    // ===================== // 
-
-
     // --- CREATING TASKS --- //
     xTaskCreate( poll_radio, "Poll RF Module", 4096, NULL, 5, NULL);
-    //xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
-    //xTaskCreate( camera_button_poll, "task for polling camera button", 256,NULL, 5, NULL);
-    //xTaskCreate(receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
+    xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
+    xTaskCreate( camera_button_poll, "task for polling camera button", 256,NULL, 5, NULL);
+    xTaskCreate( receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
 
-    // end of main...`
+    // end of main, begin Task running ...`
 }

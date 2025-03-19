@@ -281,10 +281,9 @@ void parse_json( const char * jsonString)
     // extracting a "device field"
     cJSON *first_name = cJSON_GetObjectItem(root, "f_name");
     if ( cJSON_IsString(first_name) ) {
+
         printf("name is: %s\n", first_name->valuestring);
-        write_to_disp(first_name->valuestring);
-        printf("REACHED after messagekj\n");
-        vTaskDelay(pdMS_TO_TICKS(3000));
+            write_to_disp(first_name->valuestring);
         display_clear_msg_text();
     }
 
@@ -338,8 +337,9 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
     // filling header information for client request
     esp_http_client_set_header(client, "Content-Type", "image/jpeg");
     esp_http_client_set_header(client, "Content-Disposition", "form-data; name=\"file\"; filename=\"image.jpg\"");
-    esp_http_client_set_post_field( client, (const char*)fb->buf, fb->len );
 
+    // passing the image to the client request struct via the frame buffer
+    esp_http_client_set_post_field( client, (const char*)fb->buf, fb->len );
     esp_err_t err = esp_http_client_perform(client);    // sending the image
 
     // checking client resposne
@@ -348,7 +348,7 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
         int status_code = esp_http_client_get_status_code(client);
         printf("returned status code: %d\n", status_code);
 
-        // readiong JSON
+        // readiong JSON - JSON information stored in the response_buffer global
         int content_length = esp_http_client_get_content_length(client);
         if (content_length > 0)
         {   
@@ -359,7 +359,6 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
     else {
         printf("HTTP POST failed...\n");
     }
-
 
     // clean up before returning
     esp_http_client_cleanup(client);

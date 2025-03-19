@@ -61,7 +61,6 @@ esp_err_t init_radio(void)
         return ESP_FAIL;
     }
 
-
     // starting the radio as a PAGER
     state = pager.begin(434.0, 1200, false, 4500);
     if (state == RADIOLIB_ERR_NONE)
@@ -96,9 +95,7 @@ int get_numMessages()
     if ( messages > 0 ) {
         return messages;
     }
-    else {
-        return 0;
-    }
+    else { return 0; }
 }
 
 
@@ -152,7 +149,7 @@ void poll_radio(void *param)
                 // add to the msg queue
                 if ( xQueueSend(xMsgBufferQueue, buffer, pdMS_TO_TICKS(100)) != pdPASS )
                 {
-                    //printf("Could not add msg to the queue for some reason...\n");
+                    printf("Could not add msg to the queue for some reason...\n");
                 }
 
                 // clear buffer to ensure no leftover data
@@ -169,7 +166,7 @@ void poll_radio(void *param)
         // this task will yeild for 1 second 
         // shouldnt matter how long due to hardware asynch behaviour
 
-        //printf("Minimum stack sapce is: %u\r\n", uxTaskGetStackHighWaterMark(NULL));
+        printf("Minimum stack sapce is: %u\r\n", uxTaskGetStackHighWaterMark(NULL));
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -179,14 +176,12 @@ void poll_radio(void *param)
 // TESTING TASK TO DEBUG GETTING PAGER TRANMISSIONS
 void receive_transmission(void *param)
 {
-
-
     uint8_t buffer[MSG_CHAR_LEN];
     size_t length = sizeof(buffer);
+    int num;
     // int state;
     // const int digitalDataIn = 12;
     // uint32_t myAddress = 12345;
-    int num;
 
     for (;;)
     {       

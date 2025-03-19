@@ -5,7 +5,13 @@
 // including the FreeRTOS task libraries
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/adc.h"
+
+// includes for adc drivers
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#include "esp_log.h"
+
 
 // including custom driver code
 #include "rf_comms.h"
@@ -33,9 +39,15 @@
 #define MSG_CHAR_LEN 256
 
 // Defines for battery capacity meaurment circuits
-#define ADC_CHANNEL ADC1_CHANNEL_6      // associated with pin 34 on the board
-#define ADC_WIDTH   ADC_WIDTH_BIT_12
-#define ADC_ATTEN   ADC_ATTEN_DB_0
+#define ADC_UNIT        ADC_UNIT_1
+#define ADC_CHANNEL     ADC_CHANNEL_6
+#define ADC_ATTEN       ADC_ATTEN_DB_11
+#define ADC_BITWIDTH    ADC_BITWIDTH_12
+
+static adc_oneshot_unit_handle_t    adc_handle;
+static adc_cali_handle_t            adc_cali_handle;
+static bool cali_enabled = false;
+
 #define BATTERY_MIN 3.0
 #define BATTERY_MAX 4.3
 
@@ -57,7 +69,26 @@ static float capacity;
 
 // ==== List of main wrapper functions editing display ========== //
 
-// TODO: TEST THE INTI WITH NEW PIN DEFINES
+
+// init the ADC for measuring the battery voltag - TODO: IMPLEMENT BATTERY READING
+void init_adc()
+{
+    // init the adc unit and handle
+    adc_oneshot_unit_init_cfg_t adc_config = {
+        .unit_id = ADC_UNIT
+    };  
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adc_config, &adc_handle));
+
+    // init the adc channel
+    adc_oneshot_chan_cfg_t adc_channel_config = {
+        .bitwidth = ADC_BITWIDTH,
+        .atten = ADC_ATTEN
+    };
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CHANNEL, &adc_channel_config));
+}
+
+
+// init the display - to be called on startup and used indefinitely
 esp_err_t init_display()
 {
     //calling default hardware abstaction layer for esp32
@@ -153,6 +184,7 @@ void display_update_notif()
 }
 
 
+#if 0
 // simple function to read-in the battery voltage and update the display
 void display_update_battery()
 {
@@ -173,7 +205,7 @@ void display_update_battery()
     // TODO: write function to display battery % in top-left corner
     // ...
 }
-
+#endif
 
 // write a simple verticle line to make sure display buffer has enough allocated memory
 void test_pixels()
@@ -194,45 +226,53 @@ void test_pixels()
 // TODO: HAVE FUNCTION HANDLE THE MSG_PACKAGE ISNTEAD TO GET THE MSG FLAG AS WELL
 void write_to_disp(const char* str)
 {
-    if (str == NULL){
-        printf("string given was null...\n");
-        return;
-    }
+    // take display semaphore for safe writing from tasks   
+    if ( xSemaphoreTake(xMsgDisplaySem, portMAX_DELAY) == pdTRUE) {
 
-    u8g2_SetFont(&mainDisp, u8g2_font_5x8_tr);
-    u8g2_SetDrawColor(&mainDisp, 1);
-
-    const int line_char_len = 20;
-
-    int currMsgLen = strlen(str);
-    //printf("msg length: %d\n", currMsgLen);   // debug
-
-    if (currMsgLen > line_char_len)
-    {
-        // num of lines needed to display msg based on length
-        int splitLines = (currMsgLen / line_char_len)+1;
-
-        for (int i=0; i < splitLines; i++)
-        {
-            char *substring = (char*)malloc( (line_char_len+1) * sizeof(char) );
-            if (substring == NULL) {printf("malloc failed here...\n"); return;}
-            strncpy(substring, &str[i * line_char_len], line_char_len);
-            substring[line_char_len] = '\0';
-
-            printf("%s\n", substring);
-
-            u8g2_DrawStr(&mainDisp, 14, (i*10) + 20 , substring);
-            free(substring);
+        if (str == NULL){
+            printf("string given was null...\n");
+            return;
         }
-        // sending buffer after addding al lines to it
-        u8g2_SendBuffer(&mainDisp);
 
-    }
-    else {  //case of only one line needed
-        u8g2_DrawStr(&mainDisp, 14, 20, str);
-        u8g2_SendBuffer(&mainDisp);
-    }
+        u8g2_SetFont(&mainDisp, u8g2_font_5x8_tr);
+        u8g2_SetDrawColor(&mainDisp, 1);
 
+        const int line_char_len = 20;
+
+        int currMsgLen = strlen(str);
+        //printf("msg length: %d\n", currMsgLen);   // debug
+
+        if (currMsgLen > line_char_len)
+        {
+            // num of lines needed to display msg based on length
+            int splitLines = (currMsgLen / line_char_len)+1;
+
+            for (int i=0; i < splitLines; i++)
+            {
+                char *substring = (char*)malloc( (line_char_len+1) * sizeof(char) );
+                if (substring == NULL) {printf("malloc failed here...\n"); return;}
+                strncpy(substring, &str[i * line_char_len], line_char_len);
+                substring[line_char_len] = '\0';
+
+                printf("%s\n", substring);
+
+                u8g2_DrawStr(&mainDisp, 14, (i*10) + 20 , substring);
+                free(substring);
+            }
+            // sending buffer after addding al lines to it
+            u8g2_SendBuffer(&mainDisp);
+
+        }
+        else {  //case of only one line needed
+            u8g2_DrawStr(&mainDisp, 14, 20, str);
+            u8g2_SendBuffer(&mainDisp);
+        }
+
+        xSemaphoreGive(xMsgDisplaySem);
+    }
+    else {
+        // error handling for semaphore take fail...
+    }
 }
 
 
