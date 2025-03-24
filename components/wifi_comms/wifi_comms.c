@@ -271,6 +271,8 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
 void parse_json( const char * jsonString)
 {
 
+    display_msg_package_t *patientInfo = (display_msg_package_t*)malloc(sizeof(display_msg_package_t));
+
     // passinng the json to the parser and checking for any issues
     cJSON *root = cJSON_Parse(jsonString);
     if (!root)
@@ -278,16 +280,27 @@ void parse_json( const char * jsonString)
         printf("Error before: %s\n", cJSON_GetErrorPtr());
     }
 
-    // extracting a "device field"
+    // extracting "f_name" field
     cJSON *first_name = cJSON_GetObjectItem(root, "f_name");
     if ( cJSON_IsString(first_name) ) {
-
-        printf("name is: %s\n", first_name->valuestring);
-            write_to_disp(first_name->valuestring);
-        display_clear_msg_text();
+        patientInfo->f_name = first_name->valuestring;
     }
 
+    // extracting a "
+    cJSON *last_name = cJSON_GetObjectItem(root, "l_name");
+    if ( cJSON_IsString(last_name) ) {
+        patientInfo->l_name = last_name->valuestring;
+    }
+
+    cJSON *last_checkup = cJSON_GetObjectItem(root, "last_checkup");  
+    if ( cJSON_IsString(last_checkup) ) {
+        patientInfo->last_checkup = last_checkup->valuestring;
+    }
+
+    write_patient_info(patientInfo);    // passing patient info struct to the function to be displayed
+
     // clearning the cJSON root used to parse before completing
+    free(patientInfo);
     cJSON_Delete(root);
 }
 
@@ -321,7 +334,6 @@ esp_err_t http_ping_server(const char* url) {
     esp_http_client_cleanup(client);
     return ESP_OK;
 }
-
 
 
 // function to use in order to send an image to the server and get JSON patient data back

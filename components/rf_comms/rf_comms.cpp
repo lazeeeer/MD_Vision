@@ -135,8 +135,6 @@ void poll_radio(void *param)
 
     for (;;)    // main task loop
     {  
-        printf("RADIO TASK STARTED RUNNING\n");
-
         int num = get_numMessages();
         printf("numer of messages is: %d\n", num);
 
@@ -149,7 +147,7 @@ void poll_radio(void *param)
                 printf("message received: %s\n", buffer);   // debug prints:
 
                 // add to the msg queue
-                if ( xQueueSend(xMsgBufferQueue, buffer, pdMS_TO_TICKS(100)) != pdPASS )
+                if ( xQueueSend(xMsgBufferQueue, buffer, portMAX_DELAY) != pdPASS )
                 {
                     printf("Could not add msg to the queue for some reason...\n");
                 }
@@ -168,8 +166,8 @@ void poll_radio(void *param)
         // this task will yeild for 1 second 
         // shouldnt matter how long due to hardware asynch behaviour
 
-        printf("Minimum stack sapce is: %u\r\n", uxTaskGetStackHighWaterMark(NULL));
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        //printf("Minimum stack sapce is: %u\r\n", uxTaskGetStackHighWaterMark(NULL));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 

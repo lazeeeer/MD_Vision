@@ -29,9 +29,9 @@ typedef enum {
 
 typedef struct 
 {
-    display_msg_type_t msg_flag;    // flag describing type of message
-    char message[256];               // raw message
-    size_t msgSize;
+    char *f_name;
+    char *l_name;
+    char *last_checkup;
 
 }display_msg_package_t;
 
@@ -47,4 +47,7 @@ void display_clear_msg_text();
 void display_main_hud(void);
 
 void displayLoop(void *params);
+void write_to_disp_temp(const char* str, int timeDly);
+void write_patient_info(display_msg_package_t* patientInfo);
+
 

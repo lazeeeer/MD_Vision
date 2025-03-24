@@ -161,8 +161,6 @@ void display_clear_msg_text()
 void display_update_notif()
 {
     int msgs = uxQueueMessagesWaiting(xMsgBufferQueue);
-    printf("passed checking queue...\n");
-
     // checking number of available messages in the RF69 module's memory
     if ( msgs > 0 )
     {
@@ -219,6 +217,27 @@ void test_pixels()
     u8g2_SendBuffer(&mainDisp);  // Send the buffer to the display
 }
 
+
+void write_to_disp_temp(const char* str, int timeDly)
+{
+    write_to_disp(str);
+    vTaskDelay(pdMS_TO_TICKS( timeDly * 1000 ));
+    display_clear_msg_text();
+}
+
+
+void write_patient_info(display_msg_package_t* patientInfo)
+{
+    // displaying patient information 1-by-1
+    u8g2_DrawStr(&mainDisp, 14, 20+(1*10), patientInfo->f_name);
+    u8g2_DrawStr(&mainDisp, 14, 20+(2*10), patientInfo->l_name);
+    u8g2_DrawStr(&mainDisp, 14, 20+(3*10), patientInfo->last_checkup);
+    u8g2_SendBuffer(&mainDisp);
+
+    // small delay before cleaing the information
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    display_clear_msg_text();
+}
 
 
 // TODO: HAVE FUNCTION HANDLE THE MSG_PACKAGE ISNTEAD TO GET THE MSG FLAG AS WELL
@@ -300,8 +319,6 @@ void displayLoop(void *params)
     // main event loop
     for(;;)
     {
-        printf("DISPLAU TASK STARTED RUNNING\n");
-
         display_update_notif();     // check and update notif
         //display_update_battery();   // check and update battery
 
@@ -317,6 +334,7 @@ void displayLoop(void *params)
                 // get message from buffer and put it into message[] by reference
                 if ( xQueueReceive( xMsgBufferQueue, &message, portMAX_DELAY) == pdPASS)
                 {
+                    printf("pulled out the message from buffer: %s\n", message);
                     // write the message to the display then clean the buffer after
                     write_to_disp( message );
                     memset(message, 0, sizeof(message));
@@ -330,7 +348,7 @@ void displayLoop(void *params)
         else if (processState == 1)    // displaying message, waiting for next button input
         {
             // checking same button state and button 
-            if ( (current_state == 0) && (last_state == 1) && (gpio_get_level(DISP_BUTTON) == 0) )
+            if ( (current_state == 0) && (last_state == 1) )
             {
                 display_clear_msg_text();
                 processState = 0;   // switching state back to idle

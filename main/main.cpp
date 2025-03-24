@@ -57,6 +57,8 @@ QueueHandle_t q;
 #define ENABLE_WIFI (0)
 #define ENABLE_UART (0)
 
+#define ENABLE_STAT (0)
+
 
 // ==== Definitions needed for main program ==== //
 // global control objects...
@@ -79,6 +81,24 @@ uart_config_t uart_config = {
 };
 
 
+// ==== Code for tracking the CPU load of tasks ==== // 
+
+void calculateTaskCpuLoad(TaskHandle_t taskHandle, uint32_t totalElapsedTime) {
+    TaskStatus_t taskStatus;
+    vTaskGetInfo(taskHandle, &taskStatus, pdTRUE, eRunning);
+
+    uint32_t taskExecutionTime = taskStatus.ulRunTimeCounter;
+    float cpuLoad = (float)taskExecutionTime / (float)totalElapsedTime * 100.0;
+    printf("Task %s CPU Load: %.2f%%\n", taskStatus.pcTaskName, cpuLoad);
+}
+
+void printRunTimeStats() {
+    char statsBuffer[512];
+    vTaskGetRunTimeStats(statsBuffer);
+    printf("Task Run-Time Stats:\n%s", statsBuffer);
+}
+
+
 // ==== Helper functions for the main loop ================ //
 esp_err_t init_sync_objects(void)
 {
@@ -89,6 +109,7 @@ esp_err_t init_sync_objects(void)
         printf("Message display semaphore could not be created...\n ");
         return ESP_FAIL;
     }
+    xSemaphoreGive(xMsgDisplaySem);
 
     // init the msg buffer queue
     xMsgBufferQueue = xQueueCreate( 10, sizeof( char ) * 256 );
@@ -97,6 +118,8 @@ esp_err_t init_sync_objects(void)
         printf("Message buffer queue could not be created...\n ");
         return ESP_FAIL;
     }
+
+
     return ESP_OK;
 }
 
@@ -180,7 +203,6 @@ extern "C" void app_main(void)
     int64_t elapsted_time = esp_timer_get_time() - start_time;
 
 
-
     // Random ping testing code //
     // if ( http_ping_server("https://httpbin.org/get") == ESP_OK ) {
     //     printf("ping was succesful!\n");
@@ -190,13 +212,30 @@ extern "C" void app_main(void)
     // }
 
 
-
     // --- CREATING TASKS --- //
-    xTaskCreate( poll_radio, "Poll RF Module", 4096, NULL, 5, NULL);
-    xTaskCreate( displayLoop, "Main loop for controlling display", 4096, NULL, 10, NULL);
-    xTaskCreate( camera_button_poll, "task for polling camera button", 4096, NULL, 5, NULL);
+    xTaskCreate( poll_radio, "RadioTask", 4096, NULL, 5, NULL);
+    xTaskCreate( displayLoop, "DisplayTask", 4096, NULL, 10, NULL);
+    xTaskCreate( camera_button_poll, "CameraTask", 4096, NULL, 5, NULL);
 
     //xTaskCreate( receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
+
+
+    #if ENABLE_STAT
+        for (;;)
+        {
+            // Calculate CPU load for each task
+            uint32_t totalElapsedTime = (uint32_t)esp_timer_get_time();
+            
+            printf("\n");
+            // calculateTaskCpuLoad(xTaskGetHandle("RadioTask"), totalElapsedTime);
+            // calculateTaskCpuLoad(xTaskGetHandle("DisplayTask"), totalElapsedTime);
+            // calculateTaskCpuLoad(xTaskGetHandle("CameraTask"), totalElapsedTime);
+            printRunTimeStats();
+            printf("\n");
+            vTaskDelay(pdMS_TO_TICKS(10000));
+        }
+    #endif
+
 
     // end of main, begin Task running ...`
 }

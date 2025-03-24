@@ -14,6 +14,9 @@
 #include "camera.h"
 #include "esp_camera.h"
 
+#include "GUI_drivers.h"
+#include "wifi_comms.h"
+
 
 // ==== Defines For Camera ================================
 
@@ -206,27 +209,36 @@ void camera_button_poll(void* params)
 
     for (;;)
     {
-        printf("BUTTON TASK STARTED RUNNING\n");
         int currentState = gpio_get_level(CAM_BUTTON);
 
         if ( currentState == 0 && lastState == 1 )
         {
+            // prmpt user for image capture
+            write_to_disp_temp("Capturing photo...", 1);
+
             // taking a picture
             if (take_picture() != ESP_OK) {
-                printf("picture taken!\n");
-            }
+                write_to_disp_temp("Success!", 1);
 
-            // FOR NOW: just check to see if buffer has information
-            if ( get_fb() == NULL )
-            {
-                printf("Picture was not taken???\n");
+                camera_fb_t *pic = get_fb();    // getting frame buffer after successful image capture
+                
+                // attempting to send image to server for response
+                esp_err_t state = send_image_to_server(pic);
+                if (state == ESP_OK) {
+                    printf("HTTP transmission success!\n");
+                }
+                else {
+                    printf("something went wrong during HTTP transmission\n");
+                }
+
             }
             else {
-                printf("Picture was taken on button press!\n");
+                write_to_disp_temp("Issue occured whilst capturing image...", 3);
             }
+
         }
         lastState = currentState;
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 
 }
