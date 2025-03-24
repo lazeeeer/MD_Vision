@@ -54,7 +54,7 @@ QueueHandle_t q;
 
 
 // ==== Macros for enabling / disabling certain parts of the code
-#define ENABLE_WIFI (0)
+#define ENABLE_WIFI (1)
 #define ENABLE_UART (0)
 
 #define ENABLE_STAT (0)
@@ -146,6 +146,7 @@ extern "C" void app_main(void)
     // DISPLAY HAL WILL INIT SPI BUS FOR BOTH ITSELF AND RADIO MODULE
     if (init_display() == ESP_OK )
     {
+        write_to_disp_temp("Display working", 1);
         printf("Display has started!\n");
     }
     else {
@@ -156,6 +157,7 @@ extern "C" void app_main(void)
     //init radio
     if (init_radio() == ESP_OK)
     {
+        write_to_disp_temp("Radio working", 1);
         printf("Radio has started!\n");
     }
     else {
@@ -165,10 +167,10 @@ extern "C" void app_main(void)
     // init camera
     if ( init_camera() == ESP_OK)
     {
+        write_to_disp_temp("Camera Working", 1);
         printf("Camera has started!\n");
     }
     else {
-
         printf("Camera couldnt start...\n");
         abort();
     }
@@ -203,8 +205,8 @@ extern "C" void app_main(void)
     int64_t elapsted_time = esp_timer_get_time() - start_time;
 
 
-    // Random ping testing code //
-    // if ( http_ping_server("https://httpbin.org/get") == ESP_OK ) {
+    // // Random ping testing code //
+    // if ( http_ping_server("http://10.0.0.73:5000/send_information/101") == ESP_OK ) {
     //     printf("ping was succesful!\n");
     // }
     // else {

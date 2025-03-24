@@ -31,7 +31,8 @@ typedef struct
 {
     char *f_name;
     char *l_name;
-    char *last_checkup;
+    char *last_checkup_date;
+    char *last_checkup_time;
 
 }display_msg_package_t;
 

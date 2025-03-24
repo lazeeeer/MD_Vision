@@ -228,10 +228,14 @@ void write_to_disp_temp(const char* str, int timeDly)
 
 void write_patient_info(display_msg_package_t* patientInfo)
 {
+    u8g2_SetFont(&mainDisp, u8g2_font_5x8_tr);
+    u8g2_SetDrawColor(&mainDisp, 1);
+
     // displaying patient information 1-by-1
-    u8g2_DrawStr(&mainDisp, 14, 20+(1*10), patientInfo->f_name);
-    u8g2_DrawStr(&mainDisp, 14, 20+(2*10), patientInfo->l_name);
-    u8g2_DrawStr(&mainDisp, 14, 20+(3*10), patientInfo->last_checkup);
+    u8g2_DrawStr(&mainDisp, 14, 20+(0*10), patientInfo->f_name);
+    u8g2_DrawStr(&mainDisp, 14, 20+(1*10), patientInfo->l_name);
+    u8g2_DrawStr(&mainDisp, 14, 20+(2*10), patientInfo->last_checkup_date);
+    u8g2_DrawStr(&mainDisp, 14, 20+(3*10), patientInfo->last_checkup_time);
     u8g2_SendBuffer(&mainDisp);
 
     // small delay before cleaing the information

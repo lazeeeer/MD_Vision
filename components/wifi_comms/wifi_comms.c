@@ -272,6 +272,10 @@ void parse_json( const char * jsonString)
 {
 
     display_msg_package_t *patientInfo = (display_msg_package_t*)malloc(sizeof(display_msg_package_t));
+    patientInfo->f_name = "";
+    patientInfo->l_name = "";
+    patientInfo->last_checkup_date = "";
+    patientInfo->last_checkup_time = "";
 
     // passinng the json to the parser and checking for any issues
     cJSON *root = cJSON_Parse(jsonString);
@@ -283,6 +287,7 @@ void parse_json( const char * jsonString)
     // extracting "f_name" field
     cJSON *first_name = cJSON_GetObjectItem(root, "f_name");
     if ( cJSON_IsString(first_name) ) {
+        printf("first name is: %s\n", first_name->valuestring);
         patientInfo->f_name = first_name->valuestring;
     }
 
@@ -292,9 +297,14 @@ void parse_json( const char * jsonString)
         patientInfo->l_name = last_name->valuestring;
     }
 
-    cJSON *last_checkup = cJSON_GetObjectItem(root, "last_checkup");  
-    if ( cJSON_IsString(last_checkup) ) {
-        patientInfo->last_checkup = last_checkup->valuestring;
+    cJSON *last_checkup_date = cJSON_GetObjectItem(root, "last_checkup_date");  
+    if ( cJSON_IsString(last_checkup_date) ) {
+        patientInfo->last_checkup_date = last_checkup_date->valuestring;
+    }
+
+    cJSON *last_checkup_time = cJSON_GetObjectItem(root, "last_checkup_time");  
+    if ( cJSON_IsString(last_checkup_time) ) {
+        patientInfo->last_checkup_time = last_checkup_time->valuestring;
     }
 
     write_patient_info(patientInfo);    // passing patient info struct to the function to be displayed
@@ -314,17 +324,26 @@ esp_err_t http_ping_server(const char* url) {
     esp_http_client_config_t config = {
         .url = url,
         .event_handler = _http_event_handler,
+        .method = HTTP_METHOD_GET
     };
 
     // config and send the client request
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
 
-    int64_t stop_time = esp_timer_get_time();   // stopping and measuring time after client request
-
     if (err == ESP_OK) {
-        printf("HTTP GET Status = %d, content_length = %lld \n", esp_http_client_get_status_code(client), esp_http_client_get_content_length(client));
-        printf("Elapsed time was: %lld microseconds\n", start_time-stop_time);
+
+        int status_code = esp_http_client_get_status_code(client);
+        printf("returned status code: %d\n", status_code);
+
+        // readiong JSON - JSON information stored in the response_buffer global
+        int content_length = esp_http_client_get_content_length(client);
+        if (content_length > 0)
+        {   
+            printf("%s\n", response_buffer);
+            parse_json(response_buffer);
+        }
+
     } else {
         printf("HTTP GET request failed: %s\n", esp_err_to_name(err));
         return ESP_FAIL;
@@ -370,6 +389,7 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
     }
     else {
         printf("HTTP POST failed...\n");
+        write_to_disp_temp("HTTP POST FAILED", 5);
     }
 
     // clean up before returning
