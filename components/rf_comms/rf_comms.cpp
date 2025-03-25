@@ -136,7 +136,7 @@ void poll_radio(void *param)
     for (;;)    // main task loop
     {  
         int num = get_numMessages();
-        //printf("numer of messages is: %d\n", num);
+        printf("numer of messages is: %d\n", num);
 
         if (num > 0)   // message available in buffer
         {

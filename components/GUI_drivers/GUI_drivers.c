@@ -161,6 +161,8 @@ void display_clear_msg_text()
 void display_update_notif()
 {
     int msgs = uxQueueMessagesWaiting(xMsgBufferQueue);
+    xSemaphoreTake(xMsgDisplaySem, portMAX_DELAY);
+
     // checking number of available messages in the RF69 module's memory
     if ( msgs > 0 )
     {
@@ -177,6 +179,8 @@ void display_update_notif()
         u8g2_SendBuffer(&mainDisp);
         //u8g2_DrawStr(&mainDisp, 119, 59, "0" );
     }
+
+    xSemaphoreGive(xMsgDisplaySem);
 }
 
 
@@ -259,7 +263,6 @@ void write_to_disp(const char* str)
         u8g2_SetDrawColor(&mainDisp, 1);
 
         const int line_char_len = 20;
-
         int currMsgLen = strlen(str);
         //printf("msg length: %d\n", currMsgLen);   // debug
 
@@ -271,18 +274,18 @@ void write_to_disp(const char* str)
             for (int i=0; i < splitLines; i++)
             {
                 char *substring = (char*)malloc( (line_char_len+1) * sizeof(char) );
-                if (substring == NULL) {printf("malloc failed here...\n"); return;}
+                if (substring == NULL) { printf("malloc failed here...\n"); return; }
+
                 strncpy(substring, &str[i * line_char_len], line_char_len);
                 substring[line_char_len] = '\0';
 
-                printf("%s\n", substring);
+                printf("%s\n", substring);  // debug
 
                 u8g2_DrawStr(&mainDisp, 14, (i*10) + 20 , substring);
                 free(substring);
             }
             // sending buffer after addding al lines to it
             u8g2_SendBuffer(&mainDisp);
-
         }
         else {  //case of only one line needed
             u8g2_DrawStr(&mainDisp, 14, 20, str);
@@ -292,7 +295,7 @@ void write_to_disp(const char* str)
         xSemaphoreGive(xMsgDisplaySem);
     }
     else {
-        // error handling for semaphore take fail...
+        // error handling for semaphore-take fail, should never occur...
     }
 }
 

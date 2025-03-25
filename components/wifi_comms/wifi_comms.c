@@ -270,7 +270,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
 // function to parse the JSON string we would get from the HTTP response
 void parse_json( const char * jsonString)
 {
-
+    // mallocing the patient message packet to pass all info at once
     display_msg_package_t *patientInfo = (display_msg_package_t*)malloc(sizeof(display_msg_package_t));
     patientInfo->f_name = "";
     patientInfo->l_name = "";
@@ -284,14 +284,12 @@ void parse_json( const char * jsonString)
         printf("Error before: %s\n", cJSON_GetErrorPtr());
     }
 
-    // extracting "f_name" field
     cJSON *first_name = cJSON_GetObjectItem(root, "f_name");
     if ( cJSON_IsString(first_name) ) {
         printf("first name is: %s\n", first_name->valuestring);
         patientInfo->f_name = first_name->valuestring;
     }
 
-    // extracting a "
     cJSON *last_name = cJSON_GetObjectItem(root, "l_name");
     if ( cJSON_IsString(last_name) ) {
         patientInfo->l_name = last_name->valuestring;
@@ -373,21 +371,27 @@ esp_err_t send_image_to_server( camera_fb_t *fb )
     esp_http_client_set_post_field( client, (const char*)fb->buf, fb->len );
     esp_err_t err = esp_http_client_perform(client);    // sending the image
 
-    // checking client resposne
+    // checking client resposne after making request
     if ( err == ESP_OK )
     {
+        // check if we have resposne code of 200, which means good JSON was returned from Flask
         int status_code = esp_http_client_get_status_code(client);
-        printf("returned status code: %d\n", status_code);
-
-        // readiong JSON - JSON information stored in the response_buffer global
-        int content_length = esp_http_client_get_content_length(client);
-        if (content_length > 0)
-        {   
-            printf("%s\n", response_buffer);
-            parse_json(response_buffer);
+        if (status_code == 200)
+        {
+            // readiong JSON - JSON information stored in the response_buffer global
+            if (esp_http_client_get_content_length > 0)
+            {   
+                printf("%s\n", response_buffer);
+                parse_json(response_buffer);
+            }
+        }
+        else    // base case, {"error", "invalid qr code"} is status code 600 or something else
+        {
+            printf("Did not receive patient info JSON... status code was: %d\n", status_code);
         }
     }
     else {
+        // base case of HTTP failed in general
         printf("HTTP POST failed...\n");
         write_to_disp_temp("HTTP POST FAILED", 5);
     }
