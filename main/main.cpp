@@ -38,6 +38,7 @@ extern "C" {
     #include "driver/gpio.h"
     #include "driver/spi_master.h"
     #include "esp_timer.h"
+    #include "esp_log.h"
 
     // including UART libraries
     #include "driver/uart.h"
@@ -49,19 +50,18 @@ extern "C" {
 }
 #endif
 
-QueueHandle_t q;
 #define MSG_CHAR_LEN 128
 
-
 // ==== Macros for enabling / disabling certain parts of the code
-#define ENABLE_WIFI (1)
+#define ENABLE_WIFI (0)
 #define ENABLE_UART (0)
-
 #define ENABLE_STAT (0)
 
 
+static const char* TAG = "MAIN";
+
+
 // ==== Definitions needed for main program ==== //
-// global control objects...
 SemaphoreHandle_t   xMsgDisplaySem = NULL;
 QueueHandle_t       xMsgBufferQueue = NULL; 
 
@@ -89,13 +89,13 @@ void calculateTaskCpuLoad(TaskHandle_t taskHandle, uint32_t totalElapsedTime) {
 
     uint32_t taskExecutionTime = taskStatus.ulRunTimeCounter;
     float cpuLoad = (float)taskExecutionTime / (float)totalElapsedTime * 100.0;
-    printf("Task %s CPU Load: %.2f%%\n", taskStatus.pcTaskName, cpuLoad);
+    ESP_LOGV(TAG, "Task %s CPU Load: %.2f%%\n", taskStatus.pcTaskName, cpuLoad);
 }
 
 void printRunTimeStats() {
     char statsBuffer[512];
     vTaskGetRunTimeStats(statsBuffer);
-    printf("Task Run-Time Stats:\n%s", statsBuffer);
+    ESP_LOGV(TAG, "Task Run-Time Stats:\n%s", statsBuffer);
 }
 
 
@@ -106,7 +106,7 @@ esp_err_t init_sync_objects(void)
     xMsgDisplaySem = xSemaphoreCreateBinary();
     if (xMsgDisplaySem == NULL)
     {
-        printf("Message display semaphore could not be created...\n ");
+        ESP_LOGE(TAG, "Message display semaphore could not be created...\n ");
         return ESP_FAIL;
     }
     xSemaphoreGive(xMsgDisplaySem);
@@ -115,20 +115,19 @@ esp_err_t init_sync_objects(void)
     xMsgBufferQueue = xQueueCreate( 10, sizeof( char ) * 256 );
     if ( xMsgBufferQueue == NULL)
     {
-        printf("Message buffer queue could not be created...\n ");
+        ESP_LOGE(TAG, "Message buffer queue could not be created...\n ");
         return ESP_FAIL;
     }
-
 
     return ESP_OK;
 }
 
 
-
-
 // Main entry point of the program, init all objects in here and start tasks...
 extern "C" void app_main(void)
 {
+    esp_log_level_set("*", ESP_LOG_VERBOSE);
+
     // needed to call for certain HALs
     gpio_install_isr_service(0);
 
@@ -136,42 +135,40 @@ extern "C" void app_main(void)
     esp_err_t initCheck = init_sync_objects();
     if ( initCheck != ESP_OK )
     {
-        printf("Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
+        ESP_LOGE(TAG, "Something went wrong in initialization... Error: %s\n", esp_err_to_name(initCheck) );
         abort();
     }
 
-
     // ==== Initializing all the hardware needed for system ==================== //
+
     //init display
     // DISPLAY HAL WILL INIT SPI BUS FOR BOTH ITSELF AND RADIO MODULE
     if (init_display() == ESP_OK )
     {
-        write_to_disp_temp("Display working", 1);
-        printf("Display has started!\n");
+        ESP_LOGI(TAG, "Display has started!\n");
     }
     else {
-        printf("Display couldnt start...\n");
+        ESP_LOGE(TAG, "Display couldnt start...\n");
         abort();
     }
 
     //init radio
     if (init_radio() == ESP_OK)
     {
-        write_to_disp_temp("Radio working", 1);
-        printf("Radio has started!\n");
+        ESP_LOGI(TAG, "Radio has started!\n");
     }
     else {
-        printf("Radio couldnt start...\n");
+        ESP_LOGE(TAG, "Radio couldnt start...\n");
     }
 
     // init camera
     if ( init_camera() == ESP_OK)
     {
-        write_to_disp_temp("Camera Working", 1);
-        printf("Camera has started!\n");
+        ESP_LOGI(TAG, "Camera has started!\n");
     }
     else {
-        printf("Camera couldnt start...\n");
+
+        ESP_LOGE(TAG, "Camera couldnt start...\n");
         abort();
     }
 
@@ -179,10 +176,10 @@ extern "C" void app_main(void)
         // init wifi
         if ( init_wifi_comms() == ESP_OK )
         {
-            printf("Wifi has started!\n");
+            ESP_LOGI(TAG, "Wifi has started!\n");
         }
         else {
-            printf("Wifi couldnt start...\n");
+            ESP_LOGE(TAG, "Wifi couldnt start...\n");
             abort();
         }
     #endif
@@ -191,26 +188,13 @@ extern "C" void app_main(void)
     // ==== TESTING SENDING IMAGE TO SERVER ==================== //
     // take_picture();
     // camera_fb_t *pic = get_fb();
-    // printf("size of image is: %d\n", pic->len);
+    // ESP_LOGD(TAG, "size of image is: %d\n", pic->len);
 
     // vTaskDelay(pdMS_TO_TICKS(1000));
     // esp_err_t state = send_image_to_server(pic);
     // if ( state != ESP_OK )
     // {
-    //     printf("something went wrong\n");
-    // }
-    
-    int64_t start_time = esp_timer_get_time();
-        // generic function call...
-    int64_t elapsted_time = esp_timer_get_time() - start_time;
-
-
-    // // Random ping testing code //
-    // if ( http_ping_server("http://10.0.0.73:5000/send_information/101") == ESP_OK ) {
-    //     printf("ping was succesful!\n");
-    // }
-    // else {
-    //     printf("something wert wrong in ping...\n");
+    //     ESP_LOGE(TAG, "something went wrong\n");
     // }
 
 
@@ -220,7 +204,6 @@ extern "C" void app_main(void)
     xTaskCreate( camera_button_poll, "CameraTask", 4096, NULL, 5, NULL);
 
     //xTaskCreate( receive_transmission, "receive loop task", 3072, NULL, 1, NULL);
-
 
     #if ENABLE_STAT
         for (;;)
