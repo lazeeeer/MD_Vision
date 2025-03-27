@@ -229,7 +229,7 @@ void camera_button_poll(void* params)
                     printf("HTTP transmission success!\n");
                 }
                 else {
-                    printf("something went wrong during HTTP transmission\n");
+                    write_to_disp_temp("something went wrong during HTTP transmission\n", 3);
                 }
 
             }

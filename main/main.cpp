@@ -53,7 +53,7 @@ extern "C" {
 #define MSG_CHAR_LEN 128
 
 // ==== Macros for enabling / disabling certain parts of the code
-#define ENABLE_WIFI (0)
+#define ENABLE_WIFI (1)
 #define ENABLE_UART (0)
 #define ENABLE_STAT (0)
 
@@ -197,8 +197,16 @@ extern "C" void app_main(void)
     //     ESP_LOGE(TAG, "something went wrong\n");
     // }
 
+    
+    // init_sd_card();
+    // take_picture();
+    // camera_fb_t *pic = get_fb();
+    // printf("size of image is: %d\n", pic->len);
 
-    // --- CREATING TASKS --- //
+    // save_picture("test_image.jpg", pic->buf, pic->len);
+
+
+    //--- CREATING TASKS --- //
     xTaskCreate( poll_radio, "RadioTask", 4096, NULL, 5, NULL);
     xTaskCreate( displayLoop, "DisplayTask", 4096, NULL, 10, NULL);
     xTaskCreate( camera_button_poll, "CameraTask", 4096, NULL, 5, NULL);
@@ -220,7 +228,6 @@ extern "C" void app_main(void)
             vTaskDelay(pdMS_TO_TICKS(10000));
         }
     #endif
-
 
     // end of main, begin Task running ...`
 }
